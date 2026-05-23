@@ -8,6 +8,7 @@ import { ScrapeWorker } from '../workers/scrape.worker';
 import { DaEventWorker } from '../workers/da-event.worker';
 import { ComputeWorker } from '../workers/compute.worker';
 import { OnchainActivityWorker } from '../workers/onchain.worker';
+import { config } from '../config';
 import { logger } from '../db/logger';
 
 export class WorkerFactory {
@@ -16,13 +17,6 @@ export class WorkerFactory {
   constructor(private readonly services: ServiceFactory) {}
 
   // ── Factory methods — each creates one worker ─────────────────────────────
-
-  createMigrationWorker(): MigrationWorker {
-    return new MigrationWorker(
-      this.services.migrationQueue(),
-      this.services.getMomentsRepo(),
-    );
-  }
 
   createScrapeWorker(): ScrapeWorker {
     return new ScrapeWorker(
@@ -39,6 +33,13 @@ export class WorkerFactory {
     return new DaEventWorker(new DaEventRepository((momentsRepo as unknown as { collection: { db: unknown } }).collection.db));
   }
 
+  createMigrationWorker(): MigrationWorker {
+    return new MigrationWorker(
+      this.services.migrationQueue(),
+      this.services.getMomentsRepo(),
+    );
+  }
+
   createComputeWorker(): ComputeWorker {
     return new ComputeWorker(this.services.getMomentsRepo());
   }
@@ -51,9 +52,9 @@ export class WorkerFactory {
 
   startAll(): void {
     const all: IWorker[] = [
-      this.createMigrationWorker(),
       this.createScrapeWorker(),
       this.createDaEventWorker(),
+      ...(config.zg.hasUpload() ? [this.createMigrationWorker()] : []),
       this.createComputeWorker(),
       this.createOnchainWorker(),
     ];

@@ -18,6 +18,20 @@ export function gameRouter(service: GameService): Router {
     }
   });
 
+  // Backwards-compatibility: some clients request /api/games/all
+  // Delegate to the same handler as GET `/` (list with query params).
+  router.get('/all', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const search = req.query['search'] as string | undefined;
+      const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const pageSize = Math.min(100, parseInt(req.query['page_size'] as string) || 20);
+      const data = await service.getAllGames(search, page, pageSize);
+      ok(res, data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // GET /api/games/categories
   router.get('/categories', async (_req: Request, res: Response, next: NextFunction) => {
     try {

@@ -9,6 +9,7 @@ const e = (key: string, fallback?: string): string => {
   return v;
 };
 
+const eOpt = (key: string, fallback?: string): string | undefined => process.env[key] ?? fallback;
 const eInt  = (key: string, d: number) => parseInt(process.env[key] ?? String(d), 10);
 const eBool = (key: string, d: boolean) => (process.env[key] === undefined ? d : process.env[key] === 'true');
 const eList = (key: string, d: string[]) => (process.env[key] ? process.env[key]!.split(',').map((s) => s.trim()) : d);
@@ -103,13 +104,13 @@ export const config = {
   },
 
   zg: {
-    binaryPath:   e('ZG_BINARY_PATH',     './src/external/0g/0g-storage-client'),
-    rpcUrl:       e('ZG_RPC_URL',         'https://evmrpc.0g.ai/'),
-    privateKey:   e('ZG_PRIVATE_KEY',     ''),
-    indexerUrl:   e('ZG_INDEXER_URL',     'https://indexer-storage-turbo.0g.ai'),
-    rpcTimeout:   e('ZG_RPC_TIMEOUT',     '800s'),
+    binaryPath:   eOpt('ZG_BINARY_PATH',     './src/external/0g/0g-storage-client'),
+    rpcUrl:       eOpt('ZG_RPC_URL',         'https://evmrpc.0g.ai/'),
+    privateKey:   eOpt('ZG_PRIVATE_KEY',     ''),
+    indexerUrl:   eOpt('ZG_INDEXER_URL',     'https://indexer-storage-turbo.0g.ai'),
+    rpcTimeout:   eOpt('ZG_RPC_TIMEOUT',     '800s'),
     retryCount:   eInt('ZG_RPC_RETRY_COUNT', 5),
-    retryInterval:e('ZG_RPC_RETRY_INTERVAL', '3s'),
+    retryInterval:eOpt('ZG_RPC_RETRY_INTERVAL', '3s'),
     gatewayUrl:   e('ZG_GATEWAY_URL',     ''),
     explorerUrl:  e('ZG_EXPLORER_TX_URL', ''),
     daDisperserUrl:    e('ZG_DA_DISPERSER_URL',    ''),
@@ -117,6 +118,9 @@ export const config = {
     computeApiKey:     e('ZG_COMPUTE_API_KEY',     ''),
     computeModel:      e('ZG_COMPUTE_MODEL',       'gpt-4o-mini'),
     hasCompute(): boolean { return !!(this.computeProviderUrl && this.computeApiKey); },
+    hasUpload(): boolean {
+      return !!(this.binaryPath && this.rpcUrl && this.privateKey && this.indexerUrl);
+    },
     gatewayUrlFor(hash: string)  { return this.gatewayUrl  ? this.gatewayUrl.replace('{hash}',   hash)   : null; },
     explorerUrlFor(tx: string)   { return this.explorerUrl ? this.explorerUrl.replace('{txHash}', tx)     : null; },
   },
@@ -139,7 +143,7 @@ const qk = (...parts: string[]) => [config.redis.prefix, ...parts, 'queue'].join
 
 export const QUEUES = {
   migration:      qk('moments', 'zero_g',      'migration'),
-  migrationDlq:   qk('moments', 'zero_g',      'migration')      + ':dead_letter',
+  migrationDlq:   qk('moments', 'zero_g',      'migration') + ':dead_letter',
   scrape:         qk('moments', 'bright_data', 'post_scrape'),
   referralClick:  qk('referral', 'click'),
   referralVerify: qk('referral', 'verification'),

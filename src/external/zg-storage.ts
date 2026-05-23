@@ -11,6 +11,7 @@ export interface ZgUploadResult {
 
 export function uploadFile(filePath: string): ZgUploadResult {
   const zg = config.zg;
+  if (!zg.hasUpload()) throw new Error('0G upload is not configured');
 
   const args = [
     zg.binaryPath,

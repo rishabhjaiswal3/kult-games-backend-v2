@@ -92,20 +92,20 @@ export function momentsRouter(service: MomentsService): Router {
     }
   });
 
-  // POST /api/moments/:momentId/like
-  router.post('/:momentId/like', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  // POST /api/moments/:momentId/zg/retry
+  router.post('/:momentId/zg/retry', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await service.likeMoment(req.player!.walletAddress, req.params['momentId']!);
+      const data = await service.retryZgMigration(req.player!.walletAddress, req.params['momentId']!);
       ok(res, data);
     } catch (err) {
       next(err);
     }
   });
 
-  // POST /api/moments/:momentId/zg/retry
-  router.post('/:momentId/zg/retry', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  // POST /api/moments/:momentId/like
+  router.post('/:momentId/like', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await service.retryZgMigration(req.player!.walletAddress, req.params['momentId']!);
+      const data = await service.likeMoment(req.player!.walletAddress, req.params['momentId']!);
       ok(res, data);
     } catch (err) {
       next(err);

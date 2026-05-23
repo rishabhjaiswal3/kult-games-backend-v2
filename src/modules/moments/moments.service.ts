@@ -1,13 +1,11 @@
 import { nanoid } from 'nanoid';
 import { AppError } from '../../core/error';
 import { logger } from '../../db/logger';
-import { ValkyQueue } from '../../db/redis';
 import { config } from '../../config';
+import { ValkyQueue } from '../../db/redis';
 import { fileExists } from '../../external/spaces';
 import { MomentsRepository, MomentLikesRepository, DaEventRepository } from './moments.repository';
-import {
-  MomentModel, CreateMomentRequest, UpdateMomentRequest, MigrationJob,
-} from './moments.model';
+import { MomentModel, CreateMomentRequest, UpdateMomentRequest, MigrationJob } from './moments.model';
 import type { OnchainActivityService } from '../onchain/onchain.service';
 
 const MAX_TAGS = 10;
@@ -51,7 +49,7 @@ export class MomentsService {
       tags: (req.tags ?? []).map((t) => t.trim()),
       relatedGames,
       socialMediaLinks: req.socialMediaLinks,
-      zgStatus: assetUrl ? 'pending' : undefined,
+      zgStatus: assetUrl && config.zg.hasUpload() ? 'pending' : undefined,
       numLikes: 0,
       numComments: 0,
       aiHighlights: [],
@@ -60,14 +58,15 @@ export class MomentsService {
     await this.repo.create(moment);
     logger.info({ momentId, wallet }, 'Moment created');
 
-    // Queue migration if we have an asset
-    if (assetUrl && this.migrationQueue) {
+    if (assetUrl && this.migrationQueue && config.zg.hasUpload()) {
       const assetType = req.assetMetadata?.['fileType'] as string | undefined;
       if (assetType) {
         const job: MigrationJob = { assetUrl, momentId, assetType, attempt: 1 };
         await this.migrationQueue.push(job).catch((err) => {
           logger.error({ err, momentId }, 'Failed to queue migration job');
         });
+      } else {
+        logger.warn({ momentId }, 'Moment created with assetUrl but missing fileType; skipping migration queue');
       }
     }
 
@@ -104,25 +103,6 @@ export class MomentsService {
     const moment = await this.repo.findByMomentId(momentId);
     if (!moment) throw AppError.notFound('Moment not found');
     return toResponse(moment);
-  }
-
-  async getZgProof(momentId: string) {
-    const moment = await this.repo.findByMomentId(momentId);
-    if (!moment) throw AppError.notFound('Moment not found');
-
-    return {
-      momentId: moment.momentId,
-      assetZgHash: moment.assetZgHash,
-      assetZgTxHash: moment.assetZgTxHash,
-      metadataZgHash: moment.metadataZgHash,
-      metadataZgTxHash: moment.metadataZgTxHash,
-      zgStatus: moment.zgStatus,
-      zgUploadedAt: moment.zgUploadedAt,
-      assetZgUrl: moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null,
-      metadataZgUrl: moment.metadataZgHash ? config.zg.gatewayUrlFor(moment.metadataZgHash) : null,
-      assetZgTxUrl: moment.assetZgTxHash ? config.zg.explorerUrlFor(moment.assetZgTxHash) : null,
-      metadataZgTxUrl: moment.metadataZgTxHash ? config.zg.explorerUrlFor(moment.metadataZgTxHash) : null,
-    };
   }
 
   async updateMoment(wallet: string, momentId: string, req: UpdateMomentRequest) {
@@ -162,32 +142,58 @@ export class MomentsService {
     return { liked: !alreadyLiked, message: alreadyLiked ? 'Already liked' : 'Liked' };
   }
 
-  async retryZgMigration(wallet: string, momentId: string) {
-    const moment = await this.repo.findByMomentId(momentId);
-    if (!moment) throw AppError.notFound('Moment not found');
-    if (moment.playerWalletAddress.toLowerCase() !== wallet.toLowerCase()) {
-      throw AppError.forbidden('Not the moment owner');
-    }
-    if (!moment.assetUrl) throw AppError.badRequest('Moment has no asset to migrate');
-    if (!this.migrationQueue) throw AppError.internal('Migration queue not configured');
-
-    const assetType = moment.assetMetadata?.['fileType'] as string | undefined;
-    const job: MigrationJob = {
-      assetUrl: moment.assetUrl,
-      momentId,
-      assetType: assetType ?? 'unknown',
-      attempt: 1,
-    };
-
-    await this.repo.updateByMomentId(momentId, { zgStatus: 'pending', zgError: undefined });
-    await this.migrationQueue.push(job);
-    return { message: 'Migration retry queued' };
-  }
-
   async getDaEvents(momentId: string) {
     if (!this.daEventRepo) return { events: [] };
     const events = await this.daEventRepo.findByMoment(momentId);
     return { events };
+  }
+
+  async getZgProof(momentId: string) {
+    const moment = await this.repo.findByMomentId(momentId);
+    if (!moment) throw AppError.notFound('Moment not found');
+
+    return {
+      assetZgHash: moment.assetZgHash,
+      assetZgTxHash: moment.assetZgTxHash,
+      metadataZgHash: moment.metadataZgHash,
+      metadataZgTxHash: moment.metadataZgTxHash,
+      zgStatus: moment.zgStatus,
+      zgError: moment.zgError,
+      zgUploadedAt: moment.zgUploadedAt,
+      gatewayUrl: moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null,
+      explorerUrl: moment.assetZgTxHash ? config.zg.explorerUrlFor(moment.assetZgTxHash) : null,
+    };
+  }
+
+  async retryZgMigration(wallet: string, momentId: string) {
+    if (!config.zg.hasUpload()) throw AppError.badRequest('0G upload is not configured');
+
+    const moment = await this.repo.findByMomentId(momentId);
+    if (!moment) throw AppError.notFound('Moment not found');
+    if (moment.playerWalletAddress !== wallet) throw AppError.forbidden('Not allowed');
+    if (!moment.assetUrl) throw AppError.badRequest('Moment has no asset to migrate');
+
+    const assetType = moment.assetMetadata?.['fileType'] as string | undefined;
+    if (!assetType) throw AppError.badRequest('Missing asset fileType');
+
+    const job: MigrationJob = {
+      assetUrl: moment.assetUrl,
+      momentId,
+      assetType,
+      attempt: 1,
+    };
+
+    await this.migrationQueue?.push(job).catch((err) => {
+      logger.error({ err, momentId }, 'Failed to queue retry migration job');
+      throw AppError.internal('Failed to queue retry migration job');
+    });
+
+    await this.repo.updateByMomentId(momentId, {
+      zgStatus: 'pending',
+      zgError: undefined,
+    });
+
+    return { message: 'Retry queued' };
   }
 }
 
@@ -196,21 +202,14 @@ function toResponse(m: MomentModel) {
     momentId: m.momentId,
     playerWalletAddress: m.playerWalletAddress,
     assetUrl: m.assetUrl,
-    assetZgHash: m.assetZgHash,
-    metadataZgHash: m.metadataZgHash,
-    zgStatus: m.zgStatus,
-    assetZgTxHash: m.assetZgTxHash,
-    metadataZgTxHash: m.metadataZgTxHash,
-    zgError: m.zgError,
-    zgUploadedAt: m.zgUploadedAt,
-    numLikes: m.numLikes,
-    numComments: m.numComments,
     assetMetadata: m.assetMetadata,
     title: m.title,
     description: m.description,
     tags: m.tags,
     relatedGames: m.relatedGames,
     socialMediaLinks: m.socialMediaLinks,
+    numLikes: m.numLikes,
+    numComments: m.numComments,
     aiCaption: m.aiCaption,
     aiRankScore: m.aiRankScore,
     aiHighlights: m.aiHighlights,
@@ -219,9 +218,14 @@ function toResponse(m: MomentModel) {
     aiSkillScore: m.aiSkillScore,
     aiReactionQuality: m.aiReactionQuality,
     aiRarity: m.aiRarity,
+    assetZgHash: m.assetZgHash,
+    assetZgTxHash: m.assetZgTxHash,
+    metadataZgHash: m.metadataZgHash,
+    metadataZgTxHash: m.metadataZgTxHash,
+    zgStatus: m.zgStatus,
+    zgError: m.zgError,
+    zgUploadedAt: m.zgUploadedAt,
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
-    assetZgUrl: m.assetZgHash ? config.zg.gatewayUrlFor(m.assetZgHash) : null,
-    metadataZgUrl: m.metadataZgHash ? config.zg.gatewayUrlFor(m.metadataZgHash) : null,
   };
 }
