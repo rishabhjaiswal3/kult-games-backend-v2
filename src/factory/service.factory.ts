@@ -5,7 +5,7 @@
 import { Db } from 'mongodb';
 import { Redis } from 'ioredis';
 import { ValkyQueue } from '../db/redis';
-import { QUEUES } from '../config';
+import { config, QUEUES } from '../config';
 
 // Repositories
 import { PlayerRepository, NonceRepository } from '../modules/player/player.repository';
@@ -57,7 +57,10 @@ export class ServiceFactory {
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
-  migrationQueue()  { return this.singleton('migrationQueue',  () => new ValkyQueue(this.redis, QUEUES.migration)); }
+  migrationQueue(): ValkyQueue | null {
+    if (!config.zg.hasUpload()) return null;
+    return this.singleton('migrationQueue', () => new ValkyQueue(this.redis, QUEUES.migration));
+  }
   scrapeQueue()     { return this.singleton('scrapeQueue',     () => new ValkyQueue(this.redis, QUEUES.scrape)); }
   referralClickQ()  { return this.singleton('referralClickQ',  () => new ValkyQueue(this.redis, QUEUES.referralClick)); }
   referralVerifyQ() { return this.singleton('referralVerifyQ', () => new ValkyQueue(this.redis, QUEUES.referralVerify)); }

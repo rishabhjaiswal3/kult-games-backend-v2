@@ -38,6 +38,8 @@ export class MomentsService {
 
     const momentId = nanoid(21);
     const assetUrl = req.assetUrl?.trim() || undefined;
+    const rawAssetType = req.assetMetadata?.['fileType'];
+    const assetType = typeof rawAssetType === 'string' ? rawAssetType : undefined;
 
     const moment: MomentModel = {
       momentId,
@@ -49,7 +51,7 @@ export class MomentsService {
       tags: (req.tags ?? []).map((t) => t.trim()),
       relatedGames,
       socialMediaLinks: req.socialMediaLinks,
-      zgStatus: assetUrl && config.zg.hasUpload() ? 'pending' : undefined,
+      zgStatus: assetUrl && assetType && config.zg.hasUpload() ? 'pending' : undefined,
       numLikes: 0,
       numComments: 0,
       aiHighlights: [],
@@ -58,16 +60,13 @@ export class MomentsService {
     await this.repo.create(moment);
     logger.info({ momentId, wallet }, 'Moment created');
 
-    if (assetUrl && this.migrationQueue && config.zg.hasUpload()) {
-      const assetType = req.assetMetadata?.['fileType'] as string | undefined;
-      if (assetType) {
-        const job: MigrationJob = { assetUrl, momentId, assetType, attempt: 1 };
-        await this.migrationQueue.push(job).catch((err) => {
-          logger.error({ err, momentId }, 'Failed to queue migration job');
-        });
-      } else {
-        logger.warn({ momentId }, 'Moment created with assetUrl but missing fileType; skipping migration queue');
-      }
+    if (assetUrl && assetType && this.migrationQueue && config.zg.hasUpload()) {
+      const job: MigrationJob = { assetUrl, momentId, assetType, attempt: 1 };
+      await this.migrationQueue.push(job).catch((err) => {
+        logger.error({ err, momentId }, 'Failed to queue migration job');
+      });
+    } else if (assetUrl && !assetType && config.zg.hasUpload()) {
+      logger.warn({ momentId }, 'Moment created with assetUrl but missing fileType; skipping migration queue');
     }
 
     await this.daEventRepo?.record(momentId, 'MOMENT_CREATED').catch(() => {});
@@ -173,7 +172,8 @@ export class MomentsService {
     if (moment.playerWalletAddress !== wallet) throw AppError.forbidden('Not allowed');
     if (!moment.assetUrl) throw AppError.badRequest('Moment has no asset to migrate');
 
-    const assetType = moment.assetMetadata?.['fileType'] as string | undefined;
+    const rawAssetType = moment.assetMetadata?.['fileType'];
+    const assetType = typeof rawAssetType === 'string' ? rawAssetType : undefined;
     if (!assetType) throw AppError.badRequest('Missing asset fileType');
 
     const job: MigrationJob = {

@@ -34,8 +34,10 @@ export class WorkerFactory {
   }
 
   createMigrationWorker(): MigrationWorker {
+    const queue = this.services.migrationQueue();
+    if (!queue) throw new Error('Migration queue is not configured');
     return new MigrationWorker(
-      this.services.migrationQueue(),
+      queue,
       this.services.getMomentsRepo(),
     );
   }
