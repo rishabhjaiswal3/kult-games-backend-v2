@@ -15,6 +15,8 @@ import { ContentRepository } from '../modules/content/content.repository';
 import { GlobalLeaderboardRepository, GameLeaderboardConfigRepository } from '../modules/leaderboard/leaderboard.repository';
 import { ListingRepository, OrderRepository } from '../modules/marketplace/marketplace.repository';
 import { MomentsRepository, MomentLikesRepository, DaEventRepository } from '../modules/moments/moments.repository';
+import { CommentsRepository } from '../modules/moments/comments.repository';
+import { CommentsService } from '../modules/moments/comments.service';
 import { SocialPostRepository } from '../modules/social-media/social-media.repository';
 import { OnchainActivityRepository } from '../modules/onchain/onchain.repository';
 
@@ -52,6 +54,7 @@ export class ServiceFactory {
   private momentsRepo()         { return this.singleton('momentsRepo',    () => new MomentsRepository(this.db)); }
   private likesRepo()           { return this.singleton('likesRepo',      () => new MomentLikesRepository(this.db)); }
   private daEventRepo()         { return this.singleton('daEventRepo',    () => new DaEventRepository(this.db)); }
+  private commentsRepo()        { return this.singleton('commentsRepo',   () => new CommentsRepository(this.db)); }
   private socialPostRepo()      { return this.singleton('socialPostRepo', () => new SocialPostRepository(this.db)); }
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
 
@@ -102,6 +105,12 @@ export class ServiceFactory {
         this.migrationQueue(),
         this.createOnchainService(),
       ),
+    );
+  }
+
+  createCommentsService(): CommentsService {
+    return this.singleton('commentsService', () =>
+      new CommentsService(this.commentsRepo(), this.momentsRepo()),
     );
   }
 

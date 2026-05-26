@@ -75,3 +75,48 @@ export interface MigrationJob {
   assetType: string;
   attempt: number;
 }
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+
+export interface CommentModel {
+  _id?: ObjectId;
+  momentId: string;
+  parentCommentId?: ObjectId | null;
+  authorWalletAddress: string;
+  content: string;
+  replyCount: number;
+  isEdited: boolean;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateCommentRequest {
+  content: string;
+}
+
+export interface UpdateCommentRequest {
+  content: string;
+}
+
+export interface CommentResponse {
+  commentId: string;
+  momentId: string;
+  parentCommentId?: string;
+  authorWalletAddress: string;
+  content?: string;
+  replyCount: number;
+  isEdited: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface CommentListResponse {
+  comments: CommentResponse[];
+  total: number;
+  page: number;
+  perPage: number;
+}

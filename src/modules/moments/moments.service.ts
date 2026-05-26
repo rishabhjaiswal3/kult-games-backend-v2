@@ -74,9 +74,9 @@ export class MomentsService {
     return { momentId, message: 'Moment created successfully' };
   }
 
-  async getFeed(page: number, perPage: number, tags?: string[], search?: string) {
+  async getFeed(page: number, perPage: number, tags?: string[], search?: string, mediaType?: 'image' | 'video') {
     const skip = (page - 1) * perPage;
-    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, tags, search);
+    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, tags, search, mediaType);
     return {
       moments: moments.map(toResponse),
       totalCount,

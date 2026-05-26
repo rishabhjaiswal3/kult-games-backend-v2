@@ -2,8 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { requireAuth } from '../../middleware/auth';
 import { ok } from '../../core/response';
 import { MomentsService } from './moments.service';
+import { CommentsService } from './comments.service';
 
-export function momentsRouter(service: MomentsService): Router {
+export function momentsRouter(service: MomentsService, comments: CommentsService): Router {
   const router = Router();
 
   // POST /api/moments/register
@@ -23,7 +24,9 @@ export function momentsRouter(service: MomentsService): Router {
       const perPage = Math.min(50, parseInt(req.query['per_page'] as string) || 20);
       const tags = (req.query['tags'] as string)?.split(',').map((t) => t.trim()).filter(Boolean);
       const search = req.query['search-query'] as string | undefined ?? req.query['searchQuery'] as string | undefined;
-      const data = await service.getFeed(page, perPage, tags, search);
+      const rawMediaType = req.query['media_type'] as string | undefined;
+      const mediaType = rawMediaType === 'image' || rawMediaType === 'video' ? rawMediaType : undefined;
+      const data = await service.getFeed(page, perPage, tags, search, mediaType);
       ok(res, data);
     } catch (err) {
       next(err);
@@ -40,6 +43,42 @@ export function momentsRouter(service: MomentsService): Router {
     } catch (err) {
       next(err);
     }
+  });
+
+  // ── Comment sub-routes — must come before /:momentId to avoid route shadowing ──
+
+  // GET /api/moments/comments/:commentId/replies
+  router.get('/comments/:commentId/replies', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(50, parseInt(req.query['perPage'] as string) || 20);
+      const data = await comments.listReplies(req.params['commentId']!, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/comments/:commentId/replies
+  router.post('/comments/:commentId/replies', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await comments.createReply(req.params['commentId']!, req.player!.walletAddress, req.body);
+      res.status(201).json({ ok: true, data });
+    } catch (err) { next(err); }
+  });
+
+  // PATCH /api/moments/comments/:commentId
+  router.patch('/comments/:commentId', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await comments.updateComment(req.params['commentId']!, req.player!.walletAddress, req.body);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // DELETE /api/moments/comments/:commentId
+  router.delete('/comments/:commentId', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await comments.deleteComment(req.params['commentId']!, req.player!.walletAddress);
+      ok(res, { message: 'Comment deleted' });
+    } catch (err) { next(err); }
   });
 
   // GET /api/moments/:momentId
@@ -110,6 +149,24 @@ export function momentsRouter(service: MomentsService): Router {
     } catch (err) {
       next(err);
     }
+  });
+
+  // GET /api/moments/:momentId/comments
+  router.get('/:momentId/comments', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(50, parseInt(req.query['perPage'] as string) || 20);
+      const data = await comments.listComments(req.params['momentId']!, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/:momentId/comments
+  router.post('/:momentId/comments', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await comments.createComment(req.params['momentId']!, req.player!.walletAddress, req.body);
+      res.status(201).json({ ok: true, data });
+    } catch (err) { next(err); }
   });
 
   return router;

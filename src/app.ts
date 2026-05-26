@@ -20,6 +20,8 @@ import { socialMediaRouter } from './modules/social-media/social-media.routes';
 import { referralRouter, referralRedirectRouter } from './modules/referral/referral.routes';
 import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
+import { shareRouter } from './modules/share/share.routes';
+import { MomentsRepository } from './modules/moments/moments.repository';
 
 export function createApp(services: ServiceFactory): express.Application {
   const app = express();
@@ -62,11 +64,15 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/content',      contentRouter(services.createContentService()));
   app.use('/api/leaderboard',  leaderboardRouter(services.createGlobalLeaderboardService(), services.createGameLeaderboardService()));
   app.use('/api/marketplace',  marketplaceRouter(services.createMarketplaceService()));
-  app.use('/api/moments',      momentsRouter(services.createMomentsService()));
+  app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService()));
   app.use('/api/social-media', socialMediaRouter(services.createSocialMediaService()));
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/upload',       uploadRouter());
   app.use('/api/admin',        adminRouter(services.getLbConfigRepo(), services.getListingRepo()));
+
+  // Share preview pages — bot-friendly HTML with OG/Twitter Card meta tags.
+  // Browsers are redirected to the SPA via inline JS; crawlers read the meta tags.
+  app.use('/share', shareRouter(services.getMomentsRepo()));
 
   // Referral redirect (short link: /r/:code)
   app.use('/r', referralRedirectRouter(services.createReferralService()));

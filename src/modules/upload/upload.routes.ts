@@ -7,13 +7,20 @@ import { generatePresignedUploadUrl, publicUrlForKey } from '../../external/spac
 import { config } from '../../config';
 
 const ALLOWED_CONTENT_TYPES: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg':  'jpg',
-  'image/png':  'png',
-  'image/gif':  'gif',
-  'image/webp': 'webp',
-  'video/mp4':  'mp4',
-  'video/webm': 'webm',
+  'image/jpeg':      'jpg',
+  'image/jpg':       'jpg',
+  'image/png':       'png',
+  'image/gif':       'gif',
+  'image/webp':      'webp',
+  'image/svg+xml':   'svg',
+  'image/bmp':       'bmp',
+  'image/tiff':      'tiff',
+  'image/avif':      'avif',
+  'image/heic':      'heic',
+  'image/heif':      'heif',
+  'video/mp4':       'mp4',
+  'video/webm':      'webm',
+  'video/quicktime': 'mov',
 };
 
 function safePathSegment(value: string): string {

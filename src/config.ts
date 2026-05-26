@@ -125,6 +125,17 @@ export const config = {
     explorerUrlFor(tx: string)   { return this.explorerUrl ? this.explorerUrl.replace('{txHash}', tx)     : null; },
   },
 
+  share: {
+    // The SPA's public origin (no trailing slash) — used for redirecting humans from share preview pages.
+    publicAppUrl:     e('PUBLIC_APP_URL',      'https://kult-browser-moments-p5wgi.ondigitalocean.app'),
+    // The backend's own public origin — used to build share preview URLs.
+    shareBaseUrl:     e('SHARE_BASE_URL',       'https://kult-browser-rust-l2lwg.ondigitalocean.app'),
+    // Fallback OG image shown when a moment has no asset URL.
+    defaultOgImage:   eOpt('SHARE_DEFAULT_OG_IMAGE', ''),
+    // App display name shown in meta tags.
+    siteName:         e('SHARE_SITE_NAME',      'Kult Moments'),
+  },
+
   onchain: {
     enabled:         eBool('ONCHAIN_ENABLED', false),
     rpcUrl:          e('ONCHAIN_RPC_URL',          'https://evmrpc.0g.ai/'),

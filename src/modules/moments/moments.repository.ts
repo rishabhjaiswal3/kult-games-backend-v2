@@ -21,12 +21,18 @@ export class MomentsRepository extends BaseRepository {
     limit: number,
     tags?: string[],
     search?: string,
+    mediaType?: 'image' | 'video',
   ): Promise<{ moments: MomentModel[]; totalCount: number }> {
     const filter: Document = {};
     if (tags?.length) filter['tags'] = { $in: tags };
     if (search) {
       const re = new RegExp(search, 'i');
       filter['$or'] = [{ title: re }, { description: re }, { tags: re }];
+    }
+    if (mediaType === 'image') {
+      filter['assetMetadata.fileType'] = { $regex: /^image\//i };
+    } else if (mediaType === 'video') {
+      filter['assetMetadata.fileType'] = { $regex: /^video\//i };
     }
 
     const [moments, totalCount] = await Promise.all([
@@ -65,6 +71,14 @@ export class MomentsRepository extends BaseRepository {
 
   async incrementLikes(momentId: string, delta: 1 | -1): Promise<void> {
     await this.collection.updateOne({ momentId }, { $inc: { numLikes: delta } });
+  }
+
+  async incrementNumComments(momentId: string, delta: number): Promise<boolean> {
+    const result = await this.collection.updateOne(
+      { momentId },
+      { $inc: { numComments: delta }, $set: { updatedAt: new Date() } },
+    );
+    return result.matchedCount > 0;
   }
 
   async findPendingMigration(limit: number): Promise<MomentModel[]> {
