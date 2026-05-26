@@ -72,7 +72,12 @@ export function createApp(services: ServiceFactory): express.Application {
 
   // Share preview pages — bot-friendly HTML with OG/Twitter Card meta tags.
   // Browsers are redirected to the SPA via inline JS; crawlers read the meta tags.
-  app.use('/share', shareRouter(services.getMomentsRepo()));
+  // Registered under both /share and /api/share:
+  //   /share       → direct backend URL access (kult-browser-rust-l2lwg.ondigitalocean.app/share/...)
+  //   /api/share   → via frontend domain where DigitalOcean forwards /api/* to this service
+  const shareRouterInstance = shareRouter(services.getMomentsRepo());
+  app.use('/share', shareRouterInstance);
+  app.use('/api/share', shareRouterInstance);
 
   // Referral redirect (short link: /r/:code)
   app.use('/r', referralRedirectRouter(services.createReferralService()));
