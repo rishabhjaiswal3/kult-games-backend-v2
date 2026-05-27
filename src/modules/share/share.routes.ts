@@ -53,11 +53,16 @@ function buildShareHtml(moment: MomentModel, spaUrl: string): string {
   const safeSpaUrl   = escapeHtml(spaUrl);
   const defaultImg   = config.share.defaultOgImage ? escapeHtml(config.share.defaultOgImage) : '';
 
-  // Always prefer the moment's own asset URL; only fall back to the default branding image
-  // if the moment has no asset at all. For videos the asset IS the video file — Twitter and
-  // Discord can't play it inline, but they will show the video's first frame as a thumbnail
-  // when og:image points directly to the video URL. That beats showing a generic logo.
-  const ogImage = safeAsset || defaultImg;
+  // For images: og:image = asset URL.
+  // For videos: og:image = thumbnailUrl (frame captured at upload) → real preview on all platforms.
+  //             Falls back to branding image if no thumbnail was captured.
+  //             og:video = actual video for platforms that support inline playback (Discord, FB).
+  const videoThumbnailUrl = isVideo
+    ? (moment.assetMetadata?.['thumbnailUrl'] as string | undefined)
+    : undefined;
+  const ogImage = isVideo
+    ? (videoThumbnailUrl ? escapeHtml(videoThumbnailUrl) : defaultImg)
+    : (safeAsset || defaultImg);
 
   const videoTags = isVideo && safeAsset ? `
   <!-- Video meta (Facebook, Discord, LinkedIn support og:video for inline playback) -->
@@ -69,17 +74,16 @@ function buildShareHtml(moment: MomentModel, spaUrl: string): string {
   <meta property="og:video:height" content="720" />` : '';
 
   const imageTags = ogImage ? `
-  <!-- og:image — for images this is the asset; for videos platforms extract a thumbnail frame -->
   <meta property="og:image" content="${ogImage}" />
   <meta property="og:image:secure_url" content="${ogImage}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${title}" />` : '';
 
-  // Twitter: use "player" card is complex (requires Twitter approval + HTTPS embed).
-  // Use "summary_large_image" for both types — shows the image/thumbnail prominently.
-  const twitterCard    = 'summary_large_image';
-  const twitterImage   = ogImage;
+  // Twitter: summary_large_image shows the image card prominently.
+  // For videos we use the branding image as the card thumbnail (no separate poster available).
+  const twitterCard  = 'summary_large_image';
+  const twitterImage = ogImage;
 
   const twitterTags = `
   <!-- Twitter Card -->
