@@ -64,8 +64,10 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/content',      contentRouter(services.createContentService()));
   app.use('/api/leaderboard',  leaderboardRouter(services.createGlobalLeaderboardService(), services.createGameLeaderboardService()));
   app.use('/api/marketplace',  marketplaceRouter(services.createMarketplaceService()));
+  const socialMediaRoutes = socialMediaRouter(services.createSocialMediaService());
+  app.use('/api/moments/social-media', socialMediaRoutes);
   app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService()));
-  app.use('/api/social-media', socialMediaRouter(services.createSocialMediaService()));
+  app.use('/api/social-media', socialMediaRoutes);
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/upload',       uploadRouter());
   app.use('/api/admin',        adminRouter(services.getLbConfigRepo(), services.getListingRepo()));

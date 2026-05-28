@@ -26,10 +26,21 @@ export class SocialPostRepository extends BaseRepository {
     return count > 0;
   }
 
+  async findByWalletAndPostId(wallet: string, postId: string): Promise<SocialPostModel | null> {
+    return this.collection.findOne<SocialPostModel>({ wallet_address: wallet, post_id: postId });
+  }
+
   async updateValidationStatus(platform: string, postId: string, status: string, rawData?: unknown): Promise<void> {
     await this.collection.updateOne(
       { platform, post_id: postId },
       { $set: { validation_status: status, raw_data: rawData, scraped_at: new Date() } },
+    );
+  }
+
+  async markPending(wallet: string, postId: string): Promise<void> {
+    await this.collection.updateOne(
+      { wallet_address: wallet, post_id: postId },
+      { $set: { validation_status: 'pending' }, $unset: { raw_data: '', scraped_at: '' } },
     );
   }
 

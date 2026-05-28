@@ -42,7 +42,7 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max - 1).trimEnd() + '…';
 }
 
-function buildShareHtml(moment: MomentModel, spaUrl: string): string {
+function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): string {
   const title        = escapeHtml(truncate(moment.title?.trim() || 'Kult Moment', 70));
   const description  = escapeHtml(truncate(moment.description?.trim() || 'A gaming moment shared on Kult — verified on the 0G Network.', 155));
   const assetUrl     = resolveAssetUrl(moment);
@@ -51,6 +51,7 @@ function buildShareHtml(moment: MomentModel, spaUrl: string): string {
   const siteName     = escapeHtml(config.share.siteName);
   const safeAsset    = assetUrl ? escapeHtml(assetUrl) : '';
   const safeSpaUrl   = escapeHtml(spaUrl);
+  const safeShareUrl = escapeHtml(shareUrl);
   const defaultImg   = config.share.defaultOgImage ? escapeHtml(config.share.defaultOgImage) : '';
 
   // For images: og:image = asset URL.
@@ -111,9 +112,10 @@ function buildShareHtml(moment: MomentModel, spaUrl: string): string {
   <meta property="og:site_name" content="${siteName}" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${description}" />
-  <meta property="og:url" content="${safeSpaUrl}" />
+  <meta property="og:url" content="${safeShareUrl}" />
   <meta property="og:locale" content="en_US" />${isVideo ? videoTags : `
   <meta property="og:type" content="article" />`}${imageTags}${twitterTags}
+  <link rel="canonical" href="${safeShareUrl}" />
 
   <!-- Redirect humans to the SPA immediately; crawlers skip script execution -->
   <script>window.location.replace("${safeSpaUrl}");</script>
@@ -146,7 +148,11 @@ export function shareRouter(repo: MomentsRepository): Router {
       }
 
       const ua = req.headers['user-agent'] ?? '';
-      const html = buildShareHtml(moment, spaUrl);
+      const configuredShareBase = config.share.shareBaseUrl.replace(/\/+$/, '');
+      const requestShareBase = `${req.protocol}://${req.get('host')}`.replace(/\/+$/, '');
+      const shareBase = configuredShareBase || requestShareBase;
+      const shareUrl = `${shareBase}/share/moments/${momentId}`;
+      const html = buildShareHtml(moment, spaUrl, shareUrl);
 
       if (isCrawler(ua)) {
         // Serve full HTML to crawler so it reads the meta tags.

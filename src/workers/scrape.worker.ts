@@ -38,8 +38,13 @@ export class ScrapeWorker implements IWorker {
         await this.processJob(payload);
         await this.queue.ack(raw);
       } catch (err) {
-        logger.error({ err, postUrl: payload.postUrl }, 'Scrape job failed');
+        logger.error({ err, postUrl: payload.postUrl, attempt: payload.attempt ?? 0 }, 'Scrape job failed');
         await this.queue.ack(raw);
+        const nextAttempt = (payload.attempt ?? 0) + 1;
+        if (nextAttempt < config.scrape.maxRetries) {
+          await this.queue.push({ ...payload, attempt: nextAttempt });
+          continue;
+        }
         await this.repo.updateValidationStatus(payload.platform, payload.postId, 'failed');
       }
     }
@@ -59,8 +64,20 @@ export class ScrapeWorker implements IWorker {
   private validate(data: unknown): boolean {
     if (!data || typeof data !== 'object') return false;
     const obj = data as Record<string, unknown>;
+    if ('error' in obj || 'error_code' in obj || obj['status'] === 'failed') return false;
+
     const terms = config.scrape.validationTerms;
     const content = JSON.stringify(obj).toLowerCase();
-    return terms.some((term) => content.includes(term.toLowerCase()));
+    const requiredSignals = [
+      'kult',
+      'kult moments',
+      config.share.publicAppUrl,
+      config.share.shareBaseUrl,
+      ...terms,
+    ]
+      .map((term) => term.toLowerCase().trim())
+      .filter(Boolean);
+
+    return requiredSignals.some((term) => content.includes(term));
   }
 }

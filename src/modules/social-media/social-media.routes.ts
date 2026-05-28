@@ -28,5 +28,37 @@ export function socialMediaRouter(service: SocialMediaService): Router {
     }
   });
 
+  // GET /api/social-media/my-posts
+  // Compatibility endpoint for the Moments social validation UI.
+  router.get('/my-posts', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.getMySharedPosts(req.player!.walletAddress);
+      ok(res, data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // POST /api/social-media/submit-url
+  // Compatibility endpoint for the Moments social validation UI.
+  router.post('/submit-url', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.submitPost(req.player!.walletAddress, req.body);
+      ok(res, data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // POST /api/social-media/posts/:postId/requeue
+  router.post('/posts/:postId/requeue', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.requeuePost(req.player!.walletAddress, req.params['postId']!);
+      ok(res, data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }

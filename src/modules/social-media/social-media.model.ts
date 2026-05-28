@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 export interface SocialPostModel {
   _id?: ObjectId;
   wallet_address: string;
+  moment_id?: string;
   platform: string;
   post_id: string;
   post_url: string;
@@ -14,7 +15,10 @@ export interface SocialPostModel {
 
 export interface SubmitPostRequest {
   platform: string;
-  postUrl: string;
+  postUrl?: string;
+  url?: string;
+  momentId?: string;
+  postId?: string;
 }
 
 export interface ScrapeJob {
@@ -22,4 +26,6 @@ export interface ScrapeJob {
   postUrl: string;
   walletAddress: string;
   postId: string;
+  momentId?: string;
+  attempt?: number;
 }
