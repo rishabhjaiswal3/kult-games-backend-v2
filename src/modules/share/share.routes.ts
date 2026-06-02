@@ -12,6 +12,9 @@ function isCrawler(userAgent: string): boolean {
 }
 
 function isVideoMoment(moment: MomentModel): boolean {
+  const mediaType = String(moment.assetMetadata?.['mediaType'] ?? '').toLowerCase();
+  if (mediaType === 'video') return true;
+
   const fileType = String(moment.assetMetadata?.['fileType'] ?? '').toLowerCase();
   return fileType.startsWith('video/');
 }
@@ -42,16 +45,24 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max - 1).trimEnd() + '…';
 }
 
-function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): string {
+function resolveDimension(value: unknown, fallback: number): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : fallback;
+}
+
+function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string, playerUrl: string): string {
   const title        = escapeHtml(truncate(moment.title?.trim() || 'Kult Moment', 70));
   const description  = escapeHtml(truncate(moment.description?.trim() || 'A gaming moment shared on Kult — verified on the 0G Network.', 155));
   const assetUrl     = resolveAssetUrl(moment);
   const isVideo      = isVideoMoment(moment);
   const videoMime    = resolveVideoMimeType(moment);
+  const videoWidth   = resolveDimension(moment.assetMetadata?.['width'], 1280);
+  const videoHeight  = resolveDimension(moment.assetMetadata?.['height'], 720);
   const siteName     = escapeHtml(config.share.siteName);
   const safeAsset    = assetUrl ? escapeHtml(assetUrl) : '';
   const safeSpaUrl   = escapeHtml(spaUrl);
   const safeShareUrl = escapeHtml(shareUrl);
+  const safePlayerUrl = escapeHtml(playerUrl);
   const defaultImg   = config.share.defaultOgImage ? escapeHtml(config.share.defaultOgImage) : '';
 
   // For images: og:image = asset URL.
@@ -71,8 +82,8 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): 
   <meta property="og:video" content="${safeAsset}" />
   <meta property="og:video:secure_url" content="${safeAsset}" />
   <meta property="og:video:type" content="${escapeHtml(videoMime)}" />
-  <meta property="og:video:width" content="1280" />
-  <meta property="og:video:height" content="720" />` : '';
+  <meta property="og:video:width" content="${videoWidth}" />
+  <meta property="og:video:height" content="${videoHeight}" />` : '';
 
   const imageTags = ogImage ? `
   <meta property="og:image" content="${ogImage}" />
@@ -81,9 +92,9 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): 
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${title}" />` : '';
 
-  // Twitter: summary_large_image shows the image card prominently.
-  // For videos we use the branding image as the card thumbnail (no separate poster available).
-  const twitterCard  = 'summary_large_image';
+  // X/Twitter cannot receive uploaded media from the web intent. For video
+  // moments, expose a Player Card so X can embed the video from the shared URL.
+  const twitterCard  = isVideo && safeAsset ? 'player' : 'summary_large_image';
   const twitterImage = ogImage;
 
   const twitterTags = `
@@ -92,7 +103,12 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): 
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${description}" />${twitterImage ? `
   <meta name="twitter:image" content="${twitterImage}" />
-  <meta name="twitter:image:alt" content="${title}" />` : ''}`;
+  <meta name="twitter:image:alt" content="${title}" />` : ''}${isVideo && safeAsset ? `
+  <meta name="twitter:player" content="${safePlayerUrl}" />
+  <meta name="twitter:player:width" content="${videoWidth}" />
+  <meta name="twitter:player:height" content="${videoHeight}" />
+  <meta name="twitter:player:stream" content="${safeAsset}" />
+  <meta name="twitter:player:stream:content_type" content="${escapeHtml(videoMime)}" />` : ''}`;
 
   // Hashtags from tags
   const tags     = moment.tags ?? [];
@@ -128,8 +144,63 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string): 
 </html>`;
 }
 
+function buildPlayerHtml(moment: MomentModel, spaUrl: string): string {
+  const title = escapeHtml(moment.title?.trim() || 'Kult Moment');
+  const assetUrl = resolveAssetUrl(moment);
+  const safeAsset = assetUrl ? escapeHtml(assetUrl) : '';
+  const safeSpaUrl = escapeHtml(spaUrl);
+  const videoMime = escapeHtml(resolveVideoMimeType(moment));
+  const posterUrl = moment.assetMetadata?.['thumbnailUrl'];
+  const safePoster = typeof posterUrl === 'string' && posterUrl.trim()
+    ? escapeHtml(posterUrl.trim())
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${title}</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; }
+    body { overflow: hidden; }
+    video { display: block; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+    a { position: fixed; inset: 0; display: grid; place-items: center; color: #fff; font: 14px system-ui, sans-serif; text-decoration: none; background: #000; }
+  </style>
+</head>
+<body>
+  ${safeAsset ? `<video controls playsinline preload="metadata" ${safePoster ? `poster="${safePoster}"` : ''}>
+    <source src="${safeAsset}" type="${videoMime}" />
+  </video>` : `<a href="${safeSpaUrl}" target="_blank" rel="noopener noreferrer">Open this Kult Moment</a>`}
+</body>
+</html>`;
+}
+
 export function shareRouter(repo: MomentsRepository): Router {
   const router = Router();
+
+  // GET /share/moments/:momentId/player
+  // Iframe page used by X/Twitter Player Cards for video moments.
+  router.get('/moments/:momentId/player', async (req: Request, res: Response) => {
+    const { momentId } = req.params as { momentId: string };
+    const spaUrl = `${config.share.publicAppUrl.replace(/\/+$/, '')}/moments/${momentId}`;
+
+    try {
+      const moment = await repo.findByMomentId(momentId);
+
+      if (!moment || !isVideoMoment(moment)) {
+        return res.redirect(302, spaUrl);
+      }
+
+      return res
+        .status(200)
+        .set('Content-Type', 'text/html; charset=utf-8')
+        .set('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600')
+        .send(buildPlayerHtml(moment, spaUrl));
+    } catch {
+      return res.redirect(302, spaUrl);
+    }
+  });
 
   // GET /share/moments/:momentId
   // Serves a minimal HTML page with OG/Twitter Card meta tags.
@@ -152,7 +223,8 @@ export function shareRouter(repo: MomentsRepository): Router {
       const requestShareBase = `${req.protocol}://${req.get('host')}`.replace(/\/+$/, '');
       const shareBase = configuredShareBase || requestShareBase;
       const shareUrl = `${shareBase}/share/moments/${momentId}`;
-      const html = buildShareHtml(moment, spaUrl, shareUrl);
+      const playerUrl = `${shareUrl}/player`;
+      const html = buildShareHtml(moment, spaUrl, shareUrl, playerUrl);
 
       if (isCrawler(ua)) {
         // Serve full HTML to crawler so it reads the meta tags.
