@@ -50,6 +50,14 @@ function resolveDimension(value: unknown, fallback: number): number {
   return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : fallback;
 }
 
+function resolveImageMimeType(url: string): string {
+  const cleanUrl = url.split('?')[0]?.toLowerCase() ?? '';
+  if (cleanUrl.endsWith('.png')) return 'image/png';
+  if (cleanUrl.endsWith('.webp')) return 'image/webp';
+  if (cleanUrl.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
 function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string, playerUrl: string): string {
   const title        = escapeHtml(truncate(moment.title?.trim() || 'Kult Moment', 70));
   const description  = escapeHtml(truncate(moment.description?.trim() || 'A gaming moment shared on Kult — verified on the 0G Network.', 155));
@@ -87,7 +95,9 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string, p
 
   const imageTags = ogImage ? `
   <meta property="og:image" content="${ogImage}" />
+  <meta property="og:image:url" content="${ogImage}" />
   <meta property="og:image:secure_url" content="${ogImage}" />
+  <meta property="og:image:type" content="${escapeHtml(resolveImageMimeType(ogImage))}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${title}" />` : '';
@@ -135,8 +145,6 @@ function buildShareHtml(moment: MomentModel, spaUrl: string, shareUrl: string, p
 
   <!-- Redirect humans to the SPA immediately; crawlers skip script execution -->
   <script>window.location.replace("${safeSpaUrl}");</script>
-  <!-- Fallback for crawlers that honour meta-refresh but not JS (rare) -->
-  <noscript><meta http-equiv="refresh" content="0; url=${safeSpaUrl}" /></noscript>
 </head>
 <body>
   <p>Opening <a href="${safeSpaUrl}">${title}</a> on ${siteName}…</p>
