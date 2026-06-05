@@ -127,6 +127,8 @@ No service ever instantiates its own dependencies — they are all injected thro
 |---|---|---|---|
 | GET | `/api/player/nonce` | — | Issue SIWE nonce |
 | POST | `/api/player/login` | — | SIWE login / register |
+| POST | `/api/player/telegram-miniapp-login` | — | Verified Telegram Mini App login / register |
+| POST | `/api/player/privy-login` | — | Verified Privy TON wallet login / register |
 | GET | `/api/player/profile` | ✓ | Authenticated player profile |
 | PATCH | `/api/player/name` | ✓ | Update display name |
 | GET | `/api/games` | — | Paginated game catalog |
@@ -197,6 +199,11 @@ JWT_SECRET=your-local-secret
 MONGO_URI=mongodb://localhost:27017/
 MONGO_DB_NAME=kult_browser
 VALKEY_URL=redis://127.0.0.1:6379
+
+# Required for Telegram Mini App and Privy TON login
+TELEGRAM_BOT_TOKEN=
+PRIVY_APP_ID=
+PRIVY_VERIFICATION_KEY_JWK=
 
 # Optional — workers will skip gracefully if not set
 DO_SPACES_KEY=

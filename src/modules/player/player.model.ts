@@ -32,6 +32,19 @@ export interface LoginRequest {
   referralCode?: string;
 }
 
+export interface TelegramMiniAppLoginRequest {
+  initData: string;
+  name?: string;
+}
+
+export interface PrivyTonLoginRequest {
+  walletAddress: string;
+  identityToken: string;
+  name?: string;
+  metadata?: unknown;
+  referralCode?: string;
+}
+
 export interface LoginResponse {
   token: string;
   player: { id: string; walletAddress: string; name: string };

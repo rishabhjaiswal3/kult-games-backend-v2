@@ -31,6 +31,23 @@ export function playerRouter(service: PlayerService): Router {
     }
   });
 
+  router.post('/telegram-miniapp-login', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      ok(res, await service.telegramMiniAppLogin(req.body));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/privy-login', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ip = (req.headers['x-forwarded-for'] as string) ?? req.ip ?? '0.0.0.0';
+      ok(res, await service.privyTonLogin(req.body, ip));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // GET /api/player/profile
   router.get('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {

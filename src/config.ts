@@ -30,6 +30,10 @@ export const config = {
     siweDomain:      e('SIWE_DOMAIN', 'app.kultgames.io'),
     siweUri:         e('SIWE_URI',    'https://app.kultgames.io'),
     siweChainId:     eInt('SIWE_CHAIN_ID', 1),
+    telegramBotToken: eOpt('TELEGRAM_BOT_TOKEN'),
+    privyAppId: eOpt('PRIVY_APP_ID'),
+    privyVerificationKeyJwk: eOpt('PRIVY_VERIFICATION_KEY_JWK'),
+    privyVerificationKeyPem: eOpt('PRIVY_VERIFICATION_KEY_PEM'),
   },
 
   log: {

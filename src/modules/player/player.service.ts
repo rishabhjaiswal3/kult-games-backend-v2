@@ -4,9 +4,10 @@ import { signToken, verifySiweSignature, extractNonce } from '../../middleware/a
 import { logger } from '../../db/logger';
 import { PlayerRepository, NonceRepository } from './player.repository';
 import {
-  LoginRequest, LoginResponse, NonceResponse,
+  LoginRequest, LoginResponse, NonceResponse, PrivyTonLoginRequest, TelegramMiniAppLoginRequest,
   PlayerProfileResponse, GameScoreEntry,
 } from './player.model';
+import { verifyPrivyTonWallet, verifyTelegramInitData } from './external-auth';
 
 // Imported lazily to avoid circular deps at module init time.
 // These types are imported at call sites.
@@ -82,6 +83,58 @@ export class PlayerService {
     const token = signToken(wallet);
     return {
       token,
+      player: {
+        id: player._id?.toHexString() ?? '',
+        walletAddress: player.walletAddress,
+        name: player.name,
+      },
+    };
+  }
+
+  async telegramMiniAppLogin(req: TelegramMiniAppLoginRequest): Promise<LoginResponse> {
+    if (!req.initData?.trim()) throw AppError.badRequest('initData is required');
+    const telegramUser = verifyTelegramInitData(req.initData);
+    const wallet = `tg:${telegramUser.id}`;
+    const telegramName = telegramUser.username
+      || [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ')
+      || `tg-player-${telegramUser.id}`;
+    return this.finishExternalLogin(wallet, req.name?.trim() || telegramName);
+  }
+
+  async privyTonLogin(req: PrivyTonLoginRequest, ip: string): Promise<LoginResponse> {
+    const wallet = req.walletAddress?.trim();
+    if (!wallet) throw AppError.badRequest('walletAddress is required');
+    if (!req.identityToken?.trim()) throw AppError.badRequest('identityToken is required');
+    verifyPrivyTonWallet(req.identityToken, wallet);
+    return this.finishExternalLogin(
+      wallet,
+      req.name?.trim() || `kult-player_${Date.now().toString(16).slice(-8)}`,
+      req.metadata as Record<string, unknown> | undefined,
+      req.referralCode,
+      ip,
+    );
+  }
+
+  private async finishExternalLogin(
+    wallet: string,
+    name: string,
+    metadata?: Record<string, unknown>,
+    referralCode?: string,
+    ip = '0.0.0.0',
+  ): Promise<LoginResponse> {
+    const { player, isNew } = await this.playerRepo.findOrCreate(wallet, name, metadata);
+    if (isNew) {
+      if (referralCode && this.referralQueuePush) {
+        await this.referralQueuePush(player._id?.toHexString() ?? wallet, referralCode, ip).catch((err) => {
+          logger.error({ err, wallet }, 'Failed to process external login referral');
+        });
+      }
+      await this.agentRepo.createAgentForNewUser(wallet).catch((err) => {
+        logger.error({ err, wallet }, 'Failed to generate AI agent for external login');
+      });
+    }
+    return {
+      token: signToken(wallet),
       player: {
         id: player._id?.toHexString() ?? '',
         walletAddress: player.walletAddress,
