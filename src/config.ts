@@ -36,6 +36,18 @@ export const config = {
     privyVerificationKeyPem: eOpt('PRIVY_VERIFICATION_KEY_PEM'),
   },
 
+  accessCodes: {
+    issuer: e('ACCESS_CODE_JWT_ISSUER', 'kult-browser-access'),
+    sessionExpiryDays: eInt('ACCESS_CODE_SESSION_EXPIRATION_DAYS', 7),
+    tiers: {
+      tier1: eOpt('ACCESS_CODE_TIER_1_HASH', ''),
+      tier2: eOpt('ACCESS_CODE_TIER_2_HASH', ''),
+      tier3: eOpt('ACCESS_CODE_TIER_3_HASH', ''),
+      tier4: eOpt('ACCESS_CODE_TIER_4_HASH', ''),
+      tier5: eOpt('ACCESS_CODE_TIER_5_HASH', ''),
+    },
+  },
+
   log: {
     level:  e('LOG_LEVEL',  'info'),
     format: e('LOG_FORMAT', 'pretty'),

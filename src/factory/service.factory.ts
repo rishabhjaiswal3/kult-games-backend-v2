@@ -30,6 +30,7 @@ import { MomentsService } from '../modules/moments/moments.service';
 import { SocialMediaService } from '../modules/social-media/social-media.service';
 import { ReferralService } from '../modules/referral/referral.service';
 import { OnchainActivityService } from '../modules/onchain/onchain.service';
+import { AccessCodeService } from '../modules/access/access-code.service';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -143,6 +144,10 @@ export class ServiceFactory {
         (playerId, code, ip) => this.createReferralService().processSignup(playerId, code, ip),
       ),
     );
+  }
+
+  createAccessCodeService(): AccessCodeService {
+    return this.singleton('accessCodeService', () => new AccessCodeService());
   }
 
   // Expose repos needed by admin/upload routes
