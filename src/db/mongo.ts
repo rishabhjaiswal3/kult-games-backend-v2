@@ -93,13 +93,31 @@ export async function ensureIndexes(database: Db): Promise<void> {
     ]),
   ]);
 
+  // These constraints enforce marketplace idempotency and must not fail silently.
+  await createIndexes(database, col.orders, [
+    { key: { orderId: 1 }, unique: true },
+    {
+      key: { txHash: 1 },
+      unique: true,
+      partialFilterExpression: { txHash: { $type: 'string' } },
+    },
+    { key: { playerId: 1, createdAt: -1 } },
+  ], true);
+
   logger.info('MongoDB indexes initialized');
 }
 
 async function createIndexes(
   database: Db,
   collectionName: string,
-  indexes: Array<{ key: Record<string, 1 | -1>; unique?: boolean; sparse?: boolean; expireAfterSeconds?: number }>,
+  indexes: Array<{
+    key: Record<string, 1 | -1>;
+    unique?: boolean;
+    sparse?: boolean;
+    expireAfterSeconds?: number;
+    partialFilterExpression?: Record<string, unknown>;
+  }>,
+  failOnError = false,
 ): Promise<void> {
   const coll = database.collection(collectionName);
   for (const idx of indexes) {
@@ -108,9 +126,11 @@ async function createIndexes(
         unique: idx.unique,
         sparse: idx.sparse,
         expireAfterSeconds: idx.expireAfterSeconds,
+        partialFilterExpression: idx.partialFilterExpression,
       });
     } catch (err) {
       logger.error({ err, collection: collectionName }, 'Failed to create index');
+      if (failOnError) throw err;
     }
   }
 }
