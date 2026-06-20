@@ -193,7 +193,7 @@ Copy `.env.example` to `.env`. The minimum required vars for local development:
 ```env
 HOST=0.0.0.0
 PORT=4000
-JWT_SECRET=your-local-secret
+JWT_SECRET=<generate with: openssl rand -base64 64>
 MONGO_URI=mongodb://localhost:27017/
 MONGO_DB_NAME=kult_browser
 VALKEY_URL=redis://127.0.0.1:6379

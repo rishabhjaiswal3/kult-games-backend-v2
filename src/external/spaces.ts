@@ -36,7 +36,7 @@ export async function generatePresignedUploadUrl(
 }
 
 export async function fileExists(publicUrl: string): Promise<boolean> {
-  const key = extractKeyFromUrl(publicUrl);
+  const key = extractSpacesKey(publicUrl);
   if (!key) return false;
 
   try {
@@ -47,7 +47,7 @@ export async function fileExists(publicUrl: string): Promise<boolean> {
   }
 }
 
-function extractKeyFromUrl(url: string): string | null {
+export function extractSpacesKey(url: string): string | null {
   try {
     const u = new URL(url);
     const bucket = config.spaces.bucket;
@@ -65,5 +65,11 @@ function extractKeyFromUrl(url: string): string | null {
     return null;
   } catch {
     return null;
+  }
+}
+
+export function assertTrustedSpacesUrl(url: string): void {
+  if (!extractSpacesKey(url)) {
+    throw new Error('Asset URL must point to the configured Spaces bucket');
   }
 }
