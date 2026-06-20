@@ -19,16 +19,26 @@ declare global {
 
 interface JwtPayload {
   wallet_address: string;
+  typ: 'kult_player';
 }
 
 export function signToken(walletAddress: string): string {
-  return jwt.sign({ wallet_address: walletAddress }, config.auth.jwtSecret, {
+  return jwt.sign({ wallet_address: walletAddress, typ: 'kult_player' }, config.auth.jwtSecret, {
     expiresIn: `${config.auth.jwtExpiryDays}d`,
+    issuer: config.auth.jwtIssuer,
+    audience: config.auth.jwtAudience,
   });
 }
 
 function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, config.auth.jwtSecret) as JwtPayload;
+  const payload = jwt.verify(token, config.auth.jwtSecret, {
+    issuer: config.auth.jwtIssuer,
+    audience: config.auth.jwtAudience,
+  }) as JwtPayload;
+  if (payload.typ !== 'kult_player' || typeof payload.wallet_address !== 'string') {
+    throw new Error('Invalid token type');
+  }
+  return payload;
 }
 
 // ── SIWE helpers ──────────────────────────────────────────────────────────────

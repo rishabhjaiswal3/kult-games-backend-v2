@@ -91,6 +91,7 @@ function signAccessToken(tier: AccessTierId, features: AccessFeature[]): string 
     {
       expiresIn: `${config.accessCodes.sessionExpiryDays}d`,
       issuer: config.accessCodes.issuer,
+      audience: config.auth.jwtAudience,
     },
   );
 }
