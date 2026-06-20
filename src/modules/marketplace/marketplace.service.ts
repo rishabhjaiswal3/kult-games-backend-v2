@@ -72,15 +72,33 @@ export class MarketplaceService {
     return this.orderRepo.create(order);
   }
 
-  async completeOrder(orderId: string, txHash: string): Promise<void> {
-    const order = await this.orderRepo.findByOrderId(orderId);
-    if (!order) throw AppError.notFound('Order not found');
-    if (order.status !== 'pending') throw AppError.conflict('Order already processed');
+  async completeOrder(playerId: string, orderId: string, txHash: string): Promise<void> {
+    const normalizedOrderId = orderId?.trim();
+    const normalizedTxHash = txHash?.trim().toLowerCase();
+    if (!normalizedOrderId) throw AppError.badRequest('orderId is required');
+    if (!/^0x[a-f0-9]{64}$/.test(normalizedTxHash)) {
+      throw AppError.badRequest('txHash must be a valid EVM transaction hash');
+    }
 
-    await this.orderRepo.updateStatus(orderId, 'completed', txHash);
+    try {
+      const completed = await this.orderRepo.completePending(normalizedOrderId, playerId, normalizedTxHash);
+      if (completed) return;
+    } catch (err) {
+      if (isDuplicateKeyError(err)) throw AppError.conflict('Transaction hash has already been used');
+      throw err;
+    }
+
+    const order = await this.orderRepo.findByOrderId(normalizedOrderId);
+    if (!order) throw AppError.notFound('Order not found');
+    if (order.playerId !== playerId) throw AppError.forbidden('Order does not belong to authenticated player');
+    throw AppError.conflict('Order already processed');
   }
 
   async getMyOrders(playerId: string): Promise<OrderModel[]> {
     return this.orderRepo.findByPlayer(playerId);
   }
+}
+
+function isDuplicateKeyError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === 11000;
 }
