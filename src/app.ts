@@ -68,7 +68,7 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/marketplace',  marketplaceRouter(services.createMarketplaceService()));
   const socialMediaRoutes = socialMediaRouter(services.createSocialMediaService());
   app.use('/api/moments/social-media', socialMediaRoutes);
-  app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService()));
+  app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService(), services.getMomentsRepo()));
   app.use('/api/social-media', socialMediaRoutes);
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/upload',       uploadRouter());

@@ -11,6 +11,10 @@ import type { OnchainActivityService } from '../onchain/onchain.service';
 const MAX_TAGS = 10;
 const MAX_RELATED_GAMES = 5;
 
+function walletsMatch(stored: string, caller: string): boolean {
+  return stored.trim().toLowerCase() === caller.trim().toLowerCase();
+}
+
 export class MomentsService {
   constructor(
     private readonly repo: MomentsRepository,
@@ -105,6 +109,12 @@ export class MomentsService {
   }
 
   async updateMoment(wallet: string, momentId: string, req: UpdateMomentRequest) {
+    const existing = await this.repo.findByMomentId(momentId);
+    if (!existing) throw AppError.notFound('Moment not found');
+    if (!walletsMatch(existing.playerWalletAddress, wallet)) {
+      throw AppError.forbidden('You can only edit your own moments');
+    }
+
     const patch: Partial<MomentModel> = {};
     if (req.title !== undefined) {
       const title = req.title.trim();
@@ -112,17 +122,26 @@ export class MomentsService {
       patch.title = title;
     }
     if (req.description !== undefined) patch.description = req.description.trim() || undefined;
-    if (req.tags !== undefined) patch.tags = req.tags.map((t) => t.trim());
+    if (req.tags !== undefined) {
+      if (req.tags.length > MAX_TAGS) throw AppError.badRequest(`cannot have more than ${MAX_TAGS} tags`);
+      patch.tags = req.tags.map((t) => t.trim()).filter(Boolean);
+    }
     if (req.relatedGames !== undefined) patch.relatedGames = req.relatedGames.slice(0, MAX_RELATED_GAMES);
     if (req.socialMediaLinks !== undefined) patch.socialMediaLinks = req.socialMediaLinks;
 
-    const updated = await this.repo.update(momentId, wallet, patch);
+    const updated = await this.repo.update(momentId, existing.playerWalletAddress, patch);
     if (!updated) throw AppError.notFound('Moment not found');
     return toResponse(updated);
   }
 
   async deleteMoment(wallet: string, momentId: string) {
-    const deleted = await this.repo.delete(momentId, wallet);
+    const existing = await this.repo.findByMomentId(momentId);
+    if (!existing) throw AppError.notFound('Moment not found');
+    if (!walletsMatch(existing.playerWalletAddress, wallet)) {
+      throw AppError.forbidden('You can only delete your own moments');
+    }
+
+    const deleted = await this.repo.delete(momentId, existing.playerWalletAddress);
     if (!deleted) throw AppError.notFound('Moment not found');
     await this.daEventRepo?.record(momentId, 'MOMENT_DELETED').catch(() => {});
     return { message: 'Moment deleted' };
