@@ -122,12 +122,18 @@ async function createIndexes(
   const coll = database.collection(collectionName);
   for (const idx of indexes) {
     try {
-      await coll.createIndex(idx.key, {
-        unique: idx.unique,
-        sparse: idx.sparse,
-        expireAfterSeconds: idx.expireAfterSeconds,
-        partialFilterExpression: idx.partialFilterExpression,
-      });
+      const options: Record<string, boolean | number> = {};
+      if (idx.unique !== undefined) options.unique = idx.unique;
+      if (idx.sparse !== undefined) options.sparse = idx.sparse;
+      if (idx.expireAfterSeconds !== undefined) options.expireAfterSeconds = idx.expireAfterSeconds;
+
+      await coll.createIndex(idx.key, options);
+
+      // await coll.createIndex(idx.key, {
+      //   unique: idx.unique,
+      //   sparse: idx.sparse,
+      //   expireAfterSeconds: idx.expireAfterSeconds,
+      // });
     } catch (err) {
       logger.error({ err, collection: collectionName }, 'Failed to create index');
       if (failOnError) throw err;
