@@ -31,6 +31,7 @@ import { SocialMediaService } from '../modules/social-media/social-media.service
 import { ReferralService } from '../modules/referral/referral.service';
 import { OnchainActivityService } from '../modules/onchain/onchain.service';
 import { AccessCodeService } from '../modules/access/access-code.service';
+import { InternalKpService } from '../modules/internal-kp/internal-kp.service';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -148,6 +149,10 @@ export class ServiceFactory {
 
   createAccessCodeService(): AccessCodeService {
     return this.singleton('accessCodeService', () => new AccessCodeService());
+  }
+
+  createInternalKpService(): InternalKpService {
+    return this.singleton('internalKpService', () => new InternalKpService(this.globalLbRepo()));
   }
 
   // Expose repos needed by admin/upload routes

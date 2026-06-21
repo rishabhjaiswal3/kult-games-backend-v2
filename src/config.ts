@@ -14,6 +14,14 @@ const eInt  = (key: string, d: number) => parseInt(process.env[key] ?? String(d)
 const eBool = (key: string, d: boolean) => (process.env[key] === undefined ? d : process.env[key] === 'true');
 const eList = (key: string, d: string[]) => (process.env[key] ? process.env[key]!.split(',').map((s) => s.trim()) : d);
 
+const eSecret = (key: string, minLength = 32): string => {
+  const value = process.env[key]?.trim();
+  if (!value || value.length < minLength) {
+    throw new Error(`${key} must be configured with at least ${minLength} characters`);
+  }
+  return value;
+};
+
 export const config = {
   app: {
     host:        e('HOST',        '0.0.0.0'),
@@ -25,8 +33,10 @@ export const config = {
   },
 
   auth: {
-    jwtSecret:       e('JWT_SECRET',         'change-me-before-production'),
+    jwtSecret:       eSecret('JWT_SECRET'),
     jwtExpiryDays:   eInt('JWT_EXPIRATION_DAYS', 7),
+    jwtIssuer:       e('JWT_ISSUER', 'kult-browser-backend'),
+    jwtAudience:     e('JWT_AUDIENCE', 'kult-browser-clients'),
     siweDomain:      e('SIWE_DOMAIN', 'app.kultgames.io'),
     siweUri:         e('SIWE_URI',    'https://app.kultgames.io'),
     siweChainId:     eInt('SIWE_CHAIN_ID', 1),
@@ -42,6 +52,11 @@ export const config = {
       tier4: eOpt('ACCESS_CODE_TIER_4_HASH', ''),
       tier5: eOpt('ACCESS_CODE_TIER_5_HASH', ''),
     },
+  },
+
+  internal: {
+    kpHeaderName: e('INTERNAL_KP_HEADER_NAME', 'x-kult-internal-key'),
+    kpApiKey: eOpt('INTERNAL_KP_API_KEY', ''),
   },
 
   log: {
@@ -86,6 +101,7 @@ export const config = {
     region:    e('DO_SPACES_REGION',                'sfo3'),
     bucket:    e('MOMENTS_DO_SPACES_BUCKET',        ''),
     tmpDir:    e('MOMENTS_DOWNLOAD_TMP_DIR',        '/tmp/moments'),
+    maxDownloadBytes: eInt('MOMENTS_MAX_DOWNLOAD_BYTES', 50 * 1024 * 1024),
     presignTtl: eInt('MOMENTS_DO_SPACES_PRESIGNED_EXPIRATION', 300),
     uploadPath: e('MOMENTS_UPLOAD_PATH', 'moments'),
   },

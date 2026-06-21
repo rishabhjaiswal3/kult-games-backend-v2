@@ -9,11 +9,28 @@ import { ValkyQueue } from '../db/redis';
 import { logger } from '../db/logger';
 import { config, QUEUES } from '../config';
 import { uploadFile } from '../external/zg-storage';
+import { assertTrustedSpacesUrl } from '../external/spaces';
 import { MomentsRepository } from '../modules/moments/moments.repository';
 import { MigrationJob } from '../modules/moments/moments.model';
 
 const BATCH_TIMEOUT_SECS = 5;
 const DLQ_MAX_ATTEMPTS = config.scrape.maxRetries;
+const ASSET_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+  'image/bmp': '.bmp',
+  'image/tiff': '.tiff',
+  'image/avif': '.avif',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+};
 
 export class MigrationWorker implements IWorker {
   private stopped = false;
@@ -65,16 +82,30 @@ export class MigrationWorker implements IWorker {
   }
 
   private async processJob(job: MigrationJob): Promise<void> {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(job.momentId)) {
+      throw new Error('Invalid moment ID in migration job');
+    }
+    assertTrustedSpacesUrl(job.assetUrl);
+    const ext = ASSET_EXTENSIONS[job.assetType.toLowerCase()];
+    if (!ext) throw new Error('Unsupported asset type in migration job');
+
     await this.repo.updateByMomentId(job.momentId, { zgStatus: 'migrating' });
 
     const tmpDir = config.spaces.tmpDir;
     fs.mkdirSync(tmpDir, { recursive: true });
-    const ext = path.extname(job.assetUrl).split('?')[0] ?? '';
     const tmpFile = path.join(tmpDir, `${job.momentId}${ext}`);
 
     try {
       // Download from DO Spaces
-      const response = await axios.get(job.assetUrl, { responseType: 'arraybuffer' });
+      const response = await axios.get(job.assetUrl, {
+        responseType: 'arraybuffer',
+        maxContentLength: config.spaces.maxDownloadBytes,
+        maxBodyLength: config.spaces.maxDownloadBytes,
+        timeout: 60_000,
+      });
+      if (response.data.byteLength > config.spaces.maxDownloadBytes) {
+        throw new Error('Moment asset exceeds maximum download size');
+      }
       fs.writeFileSync(tmpFile, response.data as Buffer);
 
       // Upload asset to 0G

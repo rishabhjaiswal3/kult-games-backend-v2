@@ -9,6 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.cjs",
     "hash:access-code": "node scripts/hash-access-code.mjs"
   },
   "dependencies": {

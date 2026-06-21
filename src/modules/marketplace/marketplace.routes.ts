@@ -23,16 +23,6 @@ export function marketplaceRouter(service: MarketplaceService): Router {
     }
   });
 
-  // GET /api/marketplace/:id
-  router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const data = await service.getListing(req.params['id']!);
-      ok(res, data);
-    } catch (err) {
-      next(err);
-    }
-  });
-
   // POST /api/marketplace/orders/prepare (auth)
   router.post('/orders/prepare', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -51,7 +41,7 @@ export function marketplaceRouter(service: MarketplaceService): Router {
   router.post('/orders/complete', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { orderId, txHash } = req.body as { orderId: string; txHash: string };
-      await service.completeOrder(orderId, txHash);
+      await service.completeOrder(req.player!.walletAddress, orderId, txHash);
       ok(res, { message: 'Order completed' });
     } catch (err) {
       next(err);
@@ -62,6 +52,16 @@ export function marketplaceRouter(service: MarketplaceService): Router {
   router.get('/orders/mine', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = await service.getMyOrders(req.player!.walletAddress);
+      ok(res, data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // GET /api/marketplace/:id — keep after /orders/* so "orders" is not treated as a listing ID.
+  router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.getListing(req.params['id']!);
       ok(res, data);
     } catch (err) {
       next(err);
