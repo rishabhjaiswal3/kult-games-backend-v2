@@ -31,7 +31,8 @@ import { SocialMediaService } from '../modules/social-media/social-media.service
 import { ReferralService } from '../modules/referral/referral.service';
 import { OnchainActivityService } from '../modules/onchain/onchain.service';
 import { AccessCodeService } from '../modules/access/access-code.service';
-import { InternalKpService } from '../modules/internal-kp/internal-kp.service';
+import { KultPointsRepository } from '../modules/kult-points/kult-points.repository';
+import { InternalKultPointsService } from '../modules/internal-kult-points/internal-kult-points.service';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -59,6 +60,7 @@ export class ServiceFactory {
   private commentsRepo()        { return this.singleton('commentsRepo',   () => new CommentsRepository(this.db)); }
   private socialPostRepo()      { return this.singleton('socialPostRepo', () => new SocialPostRepository(this.db)); }
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
+  private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -151,8 +153,11 @@ export class ServiceFactory {
     return this.singleton('accessCodeService', () => new AccessCodeService());
   }
 
-  createInternalKpService(): InternalKpService {
-    return this.singleton('internalKpService', () => new InternalKpService(this.globalLbRepo()));
+  createInternalKultPointsService(): InternalKultPointsService {
+    return this.singleton(
+      'internalKultPointsService',
+      () => new InternalKultPointsService(this.kultPointsRepo()),
+    );
   }
 
   // Expose repos needed by admin/upload routes

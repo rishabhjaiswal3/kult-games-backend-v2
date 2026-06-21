@@ -55,6 +55,10 @@ export async function ensureIndexes(database: Db): Promise<void> {
       { key: { walletAddress: 1 }, unique: true },
       { key: { score: -1 } },
     ]),
+    createIndexes(database, col.kultPoints, [
+      { key: { walletAddress: 1 }, unique: true },
+      { key: { kultPoints: -1 } },
+    ]),
     createIndexes(database, col.gameLbConfig, [
       { key: { identification: 1 }, unique: true },
     ]),

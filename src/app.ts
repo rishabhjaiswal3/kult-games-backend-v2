@@ -22,7 +22,7 @@ import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { shareRouter } from './modules/share/share.routes';
 import { accessCodeRouter } from './modules/access/access-code.routes';
-import { internalKpRouter } from './modules/internal-kp/internal-kp.routes';
+import { internalKultPointsRouter } from './modules/internal-kult-points/internal-kult-points.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
   const app = express();
@@ -62,7 +62,9 @@ export function createApp(services: ServiceFactory): express.Application {
 
   app.use('/api/player',       playerRouter(services.createPlayerService()));
   app.use('/api/access-code',  accessCodeRouter(services.createAccessCodeService()));
-  app.use('/api/internal/kp',  internalKpRouter(services.createInternalKpService()));
+  app.use('/api/internal/kult-points', internalKultPointsRouter(services.createInternalKultPointsService()));
+  // Legacy alias — remove once callers migrate to /api/internal/kult-points
+  app.use('/api/internal/kp', internalKultPointsRouter(services.createInternalKultPointsService()));
   app.use('/api/games',        gameRouter(services.createGameService()));
   app.use('/api/content',      contentRouter(services.createContentService()));
   app.use('/api/leaderboard',  leaderboardRouter(services.createGlobalLeaderboardService(), services.createGameLeaderboardService()));

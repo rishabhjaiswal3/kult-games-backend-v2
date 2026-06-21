@@ -3,17 +3,17 @@ import { timingSafeEqual } from 'crypto';
 import { config } from '../../config';
 import { AppError } from '../../core/error';
 import { ok } from '../../core/response';
-import { InternalKpService } from './internal-kp.service';
+import { InternalKultPointsService } from './internal-kult-points.service';
 
-export function internalKpRouter(service: InternalKpService): Router {
+export function internalKultPointsRouter(service: InternalKultPointsService): Router {
   const router = Router();
 
-  router.use(requireInternalKpKey);
+  router.use(requireInternalKultPointsKey);
 
   router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const walletAddress = req.query['walletAddress'] ?? req.query['wallet'];
-      const data = await service.getKp(String(walletAddress ?? ''));
+      const data = await service.getKultPoints(String(walletAddress ?? ''));
       ok(res, data);
     } catch (err) {
       next(err);
@@ -22,7 +22,7 @@ export function internalKpRouter(service: InternalKpService): Router {
 
   router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await service.adjustKp(req.body);
+      const data = await service.adjustKultPoints(req.body);
       ok(res, data);
     } catch (err) {
       next(err);
@@ -32,15 +32,15 @@ export function internalKpRouter(service: InternalKpService): Router {
   return router;
 }
 
-function requireInternalKpKey(req: Request, _res: Response, next: NextFunction): void {
-  const expected = config.internal.kpApiKey?.trim();
+function requireInternalKultPointsKey(req: Request, _res: Response, next: NextFunction): void {
+  const expected = config.internal.kultPointsApiKey?.trim();
   if (!expected) {
-    return next(AppError.internal('Internal KP API key is not configured'));
+    return next(AppError.internal('Internal Kult Points API key is not configured'));
   }
 
-  const provided = req.header(config.internal.kpHeaderName)?.trim();
+  const provided = req.header(config.internal.kultPointsHeaderName)?.trim();
   if (!provided || !safeEquals(provided, expected)) {
-    return next(AppError.unauthorized('Invalid internal KP key'));
+    return next(AppError.unauthorized('Invalid internal Kult Points key'));
   }
 
   next();
