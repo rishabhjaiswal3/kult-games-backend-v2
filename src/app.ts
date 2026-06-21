@@ -21,7 +21,6 @@ import { referralRouter, referralRedirectRouter } from './modules/referral/refer
 import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { shareRouter } from './modules/share/share.routes';
-import { MomentsRepository } from './modules/moments/moments.repository';
 import { accessCodeRouter } from './modules/access/access-code.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
@@ -68,7 +67,7 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/marketplace',  marketplaceRouter(services.createMarketplaceService()));
   const socialMediaRoutes = socialMediaRouter(services.createSocialMediaService());
   app.use('/api/moments/social-media', socialMediaRoutes);
-  app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService()));
+  app.use('/api/moments',      momentsRouter(services.createMomentsService(), services.createCommentsService(), services.getMomentsRepo()));
   app.use('/api/social-media', socialMediaRoutes);
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/upload',       uploadRouter());

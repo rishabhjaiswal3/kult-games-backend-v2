@@ -23,12 +23,14 @@ export function publicUrlForKey(key: string): string {
 
 export async function generatePresignedUploadUrl(
   key: string,
+  contentType?: string,
   ttlSecs = config.spaces.presignTtl,
 ): Promise<{ uploadUrl: string; publicUrl: string }> {
   const command = new PutObjectCommand({
     Bucket: config.spaces.bucket,
     Key: key,
     ACL: 'public-read',
+    ...(contentType ? { ContentType: contentType } : {}),
   });
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: ttlSecs });

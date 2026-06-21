@@ -46,12 +46,15 @@ export function uploadRouter(): Router {
       const walletSegment = safePathSegment(req.player!.walletAddress);
       const key = `${uploadPath}/${walletSegment}/${nanoid()}.${ext}`;
 
-      const { uploadUrl, publicUrl } = await generatePresignedUploadUrl(key);
+      const { uploadUrl, publicUrl } = await generatePresignedUploadUrl(key, ct);
 
       ok(res, {
         upload_url: uploadUrl,
         public_url: publicUrl,
-        required_headers: { 'x-amz-acl': 'public-read' },
+        // Content-Type must be included in the PUT request so DO Spaces stores
+        // the object with the correct MIME type. Without it, objects default to
+        // application/octet-stream which causes social platforms to reject images.
+        required_headers: { 'x-amz-acl': 'public-read', 'Content-Type': ct },
       });
     } catch (err) {
       next(err);
