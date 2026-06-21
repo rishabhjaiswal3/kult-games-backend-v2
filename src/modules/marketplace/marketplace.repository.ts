@@ -1,4 +1,4 @@
-import { Db, ObjectId, ReturnDocument } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { BaseRepository } from '../../core/types';
 import { config } from '../../config';
 import { ListingModel, OrderModel } from './marketplace.model';
@@ -58,10 +58,19 @@ export class OrderRepository extends BaseRepository {
     return this.collection.findOne<OrderModel>({ orderId });
   }
 
-  async updateStatus(orderId: string, status: string, txHash?: string): Promise<void> {
-    const upd: Record<string, unknown> = { status };
-    if (txHash) upd['txHash'] = txHash;
-    await this.collection.updateOne({ orderId }, { $set: upd });
+  async completePending(orderId: string, playerId: string, txHash: string): Promise<OrderModel | null> {
+    return this.collection.findOneAndUpdate(
+      { orderId, playerId, status: 'pending' },
+      {
+        $set: {
+          status: 'completed',
+          txHash,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' },
+    ) as Promise<OrderModel | null>;
   }
 
   async findByPlayer(playerId: string): Promise<OrderModel[]> {

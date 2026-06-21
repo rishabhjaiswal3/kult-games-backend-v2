@@ -1,6 +1,8 @@
-// 0G Storage client — shells out to the 0g-storage-client binary.
+// 0G Storage client — invokes the binary directly without a command shell.
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { config } from '../config';
 import { logger } from '../db/logger';
 
@@ -12,26 +14,48 @@ export interface ZgUploadResult {
 export function uploadFile(filePath: string): ZgUploadResult {
   const zg = config.zg;
   if (!zg.hasUpload()) throw new Error('0G upload is not configured');
+  const binaryPath = zg.binaryPath!;
+  const rpcUrl = zg.rpcUrl!;
+  const privateKey = zg.privateKey!;
+  const indexerUrl = zg.indexerUrl!;
+  const rpcTimeout = zg.rpcTimeout!;
+  const retryInterval = zg.retryInterval!;
+
+  const resolvedFile = path.resolve(filePath);
+  const resolvedTmpDir = path.resolve(config.spaces.tmpDir);
+  const relativePath = path.relative(resolvedTmpDir, resolvedFile);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('0G upload file must be inside the configured temporary directory');
+  }
+  const stat = fs.lstatSync(resolvedFile);
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error('0G upload path must be a regular file');
+  }
 
   const args = [
-    zg.binaryPath,
     'upload',
-    '--url', zg.rpcUrl,
-    '--key', zg.privateKey,
-    '--indexer', zg.indexerUrl,
+    '--url', rpcUrl,
+    '--key', privateKey,
+    '--indexer', indexerUrl,
     '--file', filePath,
-    '--rpc-timeout', zg.rpcTimeout,
+    '--rpc-timeout', rpcTimeout,
     '--rpc-retry-count', String(zg.retryCount),
-    '--rpc-retry-interval', zg.retryInterval,
+    '--rpc-retry-interval', retryInterval,
     '--log-level', 'debug',
     '--web3-log-enabled',
-  ].join(' ');
+  ];
 
   logger.info({ filePath }, '0G upload starting');
 
   let combined: string;
   try {
-    const stdout = execSync(args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const stdout = execFileSync(binaryPath, args, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
+      timeout: 15 * 60 * 1000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
     combined = stdout;
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; message?: string };

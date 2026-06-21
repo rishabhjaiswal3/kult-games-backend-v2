@@ -28,5 +28,7 @@ export interface OrderModel {
   quantity: number;
   status: string;
   txHash?: string;
+  completedAt?: Date;
   createdAt?: Date;
+  updatedAt?: Date;
 }
