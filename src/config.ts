@@ -54,6 +54,11 @@ export const config = {
     },
   },
 
+  internal: {
+    kpHeaderName: e('INTERNAL_KP_HEADER_NAME', 'x-kult-internal-key'),
+    kpApiKey: eOpt('INTERNAL_KP_API_KEY', ''),
+  },
+
   log: {
     level:  e('LOG_LEVEL',  'info'),
     format: e('LOG_FORMAT', 'pretty'),

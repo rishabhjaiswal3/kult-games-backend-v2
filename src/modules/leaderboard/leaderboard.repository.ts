@@ -25,6 +25,18 @@ export class GlobalLeaderboardRepository extends BaseRepository {
     return this.collection.findOne<GlobalLeaderboardModel>({ walletAddress: wallet });
   }
 
+  async upsertPlayerEntry(entry: GlobalLeaderboardModel): Promise<void> {
+    await this.collection.replaceOne(
+      { walletAddress: entry.walletAddress },
+      entry,
+      { upsert: true },
+    );
+  }
+
+  async getAllEntries(): Promise<GlobalLeaderboardModel[]> {
+    return this.collection.find<GlobalLeaderboardModel>({}).sort({ score: -1 }).toArray();
+  }
+
   async replaceAll(entries: GlobalLeaderboardModel[]): Promise<void> {
     if (!entries.length) {
       await this.collection.deleteMany({});
