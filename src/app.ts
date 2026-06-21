@@ -21,6 +21,7 @@ import { referralRouter, referralRedirectRouter } from './modules/referral/refer
 import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { shareRouter } from './modules/share/share.routes';
+import { MomentsRepository } from './modules/moments/moments.repository';
 import { accessCodeRouter } from './modules/access/access-code.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
