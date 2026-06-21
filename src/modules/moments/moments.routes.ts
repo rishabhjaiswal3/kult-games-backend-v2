@@ -3,9 +3,13 @@ import { requireAuth } from '../../middleware/auth';
 import { ok } from '../../core/response';
 import { MomentsService } from './moments.service';
 import { CommentsService } from './comments.service';
+import { MomentsRepository } from './moments.repository';
+import { createDefaultOgImageHandler, createMomentShareImageHandler } from '../share/share.ogImage';
 
-export function momentsRouter(service: MomentsService, comments: CommentsService): Router {
+export function momentsRouter(service: MomentsService, comments: CommentsService, repo: MomentsRepository): Router {
   const router = Router();
+  const shareImageHandler = createMomentShareImageHandler(repo);
+  const defaultShareImageHandler = createDefaultOgImageHandler();
 
   // POST /api/moments/register
   router.post('/register', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
@@ -80,6 +84,12 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
       ok(res, { message: 'Comment deleted' });
     } catch (err) { next(err); }
   });
+
+  // GET /api/moments/default/share-image.jpg — JPEG fallback for app-level OG tags
+  router.get('/default/share-image.jpg', defaultShareImageHandler);
+
+  // GET /api/moments/:momentId/share-image.jpg — social preview image (JPEG proxy)
+  router.get('/:momentId/share-image.jpg', shareImageHandler);
 
   // GET /api/moments/:momentId
   router.get('/:momentId', async (req: Request, res: Response, next: NextFunction) => {
