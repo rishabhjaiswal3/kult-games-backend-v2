@@ -14,7 +14,7 @@ export class KultPointsRepository extends BaseRepository {
 
   async getBalance(walletAddress: string): Promise<number> {
     const entry = await this.findByWallet(walletAddress);
-    return entry?.kultPoints ?? DEFAULT_KULT_POINTS;
+    return clampKultPoints(entry?.kultPoints ?? DEFAULT_KULT_POINTS);
   }
 
   async setBalance(walletAddress: string, kultPoints: number): Promise<KultPointsModel> {
@@ -43,8 +43,9 @@ export class KultPointsRepository extends BaseRepository {
   }
 
   async countRankByKultPoints(kultPoints: number): Promise<number> {
-    if (kultPoints <= 0) return 0;
-    return this.collection.countDocuments({ kultPoints: { $gt: kultPoints } });
+    const safe = clampKultPoints(kultPoints);
+    if (safe <= 0) return 0;
+    return this.collection.countDocuments({ kultPoints: { $gt: safe } });
   }
 
   async bulkSetBalances(
@@ -54,13 +55,17 @@ export class KultPointsRepository extends BaseRepository {
 
     const now = new Date();
     const ops = entries.map(({ walletAddress, kultPoints }) => ({
-      replaceOne: {
+      updateOne: {
         filter: { walletAddress },
-        replacement: {
-          walletAddress,
-          kultPoints: clampKultPoints(kultPoints),
-          createdAt: now,
-          updatedAt: now,
+        update: {
+          $set: {
+            walletAddress,
+            kultPoints: clampKultPoints(kultPoints),
+            updatedAt: now,
+          },
+          $setOnInsert: {
+            createdAt: now,
+          },
         },
         upsert: true,
       },

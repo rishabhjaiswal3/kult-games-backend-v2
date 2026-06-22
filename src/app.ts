@@ -22,6 +22,7 @@ import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { shareRouter } from './modules/share/share.routes';
 import { accessCodeRouter } from './modules/access/access-code.routes';
+import { kultPointsRouter } from './modules/kult-points/kult-points.routes';
 import { internalKultPointsRouter } from './modules/internal-kult-points/internal-kult-points.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
@@ -47,7 +48,7 @@ export function createApp(services: ServiceFactory): express.Application {
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.
   // Internally rewrite those to `/api/...` so we don't break existing traffic.
-  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code'];
+  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code', '/kp', '/kult-points'];
   app.use((req, _res, next) => {
     for (const p of legacyPrefixes) {
       if (req.path === p || req.path.startsWith(p + '/')) {
@@ -61,6 +62,11 @@ export function createApp(services: ServiceFactory): express.Application {
   // ── Routes ────────────────────────────────────────────────────────────────
 
   app.use('/api/player',       playerRouter(services.createPlayerService()));
+  const publicKultPointsRouter = kultPointsRouter(services.createKultPointsService());
+  app.use('/api/kp',           publicKultPointsRouter);
+  app.use('/api/kult-points',  publicKultPointsRouter);
+  // Legacy path — public read-only; no internal key required for GET.
+  app.use('/api/internal/kp',  publicKultPointsRouter);
   app.use('/api/access-code',  accessCodeRouter(services.createAccessCodeService()));
   app.use('/api/internal/kult-points', internalKultPointsRouter(services.createInternalKultPointsService()));
   // Legacy alias — remove once callers migrate to /api/internal/kult-points

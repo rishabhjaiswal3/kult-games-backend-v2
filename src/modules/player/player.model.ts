@@ -50,6 +50,8 @@ export interface PlayerProfile {
   username: string;
   rank?: number;
   totalScore: number;
+  kultPoints: number;
+  kultPointsRank?: number;
   level: number;
   totalGamesPlayed: number;
   completedQuests: number;

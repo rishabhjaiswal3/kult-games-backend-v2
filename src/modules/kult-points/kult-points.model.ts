@@ -1,5 +1,7 @@
 import { ObjectId } from 'mongodb';
 
+export const DEFAULT_KULT_POINTS = 0;
+
 /** Per-wallet Kult Points balance. New wallets default to kultPoints = 0 when created. */
 export interface KultPointsModel {
   _id?: ObjectId;
@@ -8,8 +10,6 @@ export interface KultPointsModel {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export const DEFAULT_KULT_POINTS = 0;
 
 export function createDefaultKultPoints(walletAddress: string, now = new Date()): KultPointsModel {
   return {
