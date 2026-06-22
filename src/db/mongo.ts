@@ -55,6 +55,10 @@ export async function ensureIndexes(database: Db): Promise<void> {
       { key: { walletAddress: 1 }, unique: true },
       { key: { score: -1 } },
     ]),
+    createIndexes(database, col.kultPoints, [
+      { key: { walletAddress: 1 }, unique: true },
+      { key: { kultPoints: -1 } },
+    ]),
     createIndexes(database, col.gameLbConfig, [
       { key: { identification: 1 }, unique: true },
     ]),
@@ -93,24 +97,50 @@ export async function ensureIndexes(database: Db): Promise<void> {
     ]),
   ]);
 
+  // These constraints enforce marketplace idempotency and must not fail silently.
+  await createIndexes(database, col.orders, [
+    { key: { orderId: 1 }, unique: true },
+    {
+      key: { txHash: 1 },
+      unique: true,
+      partialFilterExpression: { txHash: { $type: 'string' } },
+    },
+    { key: { playerId: 1, createdAt: -1 } },
+  ], true);
+
   logger.info('MongoDB indexes initialized');
 }
 
 async function createIndexes(
   database: Db,
   collectionName: string,
-  indexes: Array<{ key: Record<string, 1 | -1>; unique?: boolean; sparse?: boolean; expireAfterSeconds?: number }>,
+  indexes: Array<{
+    key: Record<string, 1 | -1>;
+    unique?: boolean;
+    sparse?: boolean;
+    expireAfterSeconds?: number;
+    partialFilterExpression?: Record<string, unknown>;
+  }>,
+  failOnError = false,
 ): Promise<void> {
   const coll = database.collection(collectionName);
   for (const idx of indexes) {
     try {
-      await coll.createIndex(idx.key, {
-        unique: idx.unique,
-        sparse: idx.sparse,
-        expireAfterSeconds: idx.expireAfterSeconds,
-      });
+      const options: Record<string, boolean | number> = {};
+      if (idx.unique !== undefined) options.unique = idx.unique;
+      if (idx.sparse !== undefined) options.sparse = idx.sparse;
+      if (idx.expireAfterSeconds !== undefined) options.expireAfterSeconds = idx.expireAfterSeconds;
+
+      await coll.createIndex(idx.key, options);
+
+      // await coll.createIndex(idx.key, {
+      //   unique: idx.unique,
+      //   sparse: idx.sparse,
+      //   expireAfterSeconds: idx.expireAfterSeconds,
+      // });
     } catch (err) {
       logger.error({ err, collection: collectionName }, 'Failed to create index');
+      if (failOnError) throw err;
     }
   }
 }

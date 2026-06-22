@@ -33,6 +33,7 @@ import { SocialMediaService } from '../modules/social-media/social-media.service
 import { ReferralService } from '../modules/referral/referral.service';
 import { OnchainActivityService } from '../modules/onchain/onchain.service';
 import { AccessCodeService } from '../modules/access/access-code.service';
+import { InternalKultPointsService } from '../modules/internal-kult-points/internal-kult-points.service';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -156,6 +157,13 @@ export class ServiceFactory {
 
   createAccessCodeService(): AccessCodeService {
     return this.singleton('accessCodeService', () => new AccessCodeService());
+  }
+
+  createInternalKultPointsService(): InternalKultPointsService {
+    return this.singleton(
+      'internalKultPointsService',
+      () => new InternalKultPointsService(this.kultPointsRepo()),
+    );
   }
 
   // Expose repos needed by admin/upload routes

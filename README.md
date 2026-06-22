@@ -193,7 +193,7 @@ Copy `.env.example` to `.env`. The minimum required vars for local development:
 ```env
 HOST=0.0.0.0
 PORT=4000
-JWT_SECRET=your-local-secret
+JWT_SECRET=<generate with: openssl rand -base64 64>
 MONGO_URI=mongodb://localhost:27017/
 MONGO_DB_NAME=kult_browser
 VALKEY_URL=redis://127.0.0.1:6379
@@ -224,6 +224,11 @@ Workers start automatically with the server and stop gracefully on `SIGTERM`/`SI
 | `OnchainWorker` | Polling (configurable) | Submits activity jobs to EVM contract |
 
 Workers that depend on unconfigured external services skip silently on startup — the rest of the app continues working.
+
+The current `0g-storage-client` interface requires its private key as a command-line
+argument. Use a dedicated, least-privilege key and rotate it regularly. Moving the key
+off the process command line requires CLI support for stdin, an environment variable,
+or a protected key file.
 
 ---
 
