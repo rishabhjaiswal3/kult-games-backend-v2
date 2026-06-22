@@ -13,6 +13,7 @@ import {
 import type { GlobalLeaderboardRepository } from '../leaderboard/leaderboard.repository';
 import type { GameLeaderboardService } from '../leaderboard/leaderboard.service';
 import type { AgentRepository } from '../agent/agent.repository';
+import type { KultPointsService } from '../kult-points/kult-points.service';
 
 export class PlayerService {
   constructor(
@@ -21,6 +22,7 @@ export class PlayerService {
     private readonly globalLbRepo: GlobalLeaderboardRepository,
     private readonly gameLbService: GameLeaderboardService,
     private readonly agentRepo: AgentRepository,
+    private readonly kultPointsService: KultPointsService,
     private readonly referralQueuePush: ((playerId: string, code: string, ip: string) => Promise<void>) | null,
   ) {}
 
@@ -113,6 +115,13 @@ export class PlayerService {
 
     const purchasedAssets = player.metadata?.['gameAssets'] ?? undefined;
 
+    const kp = await this.kultPointsService.getKultPoints(wallet).catch(() => ({
+      walletAddress: wallet,
+      kultPoints: 0,
+      rank: undefined,
+      level: 1,
+    }));
+
     return {
       cached: false,
       profile: {
@@ -120,6 +129,8 @@ export class PlayerService {
         username: player.name,
         rank,
         totalScore,
+        kultPoints: kp.kultPoints,
+        kultPointsRank: kp.rank,
         level,
         totalGamesPlayed: gameScoresList.length,
         completedQuests: 0,

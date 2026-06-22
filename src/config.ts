@@ -61,6 +61,7 @@ export const config = {
       players:           e('PLAYERS_COLL',                 'store_players'),
       nonces:            e('PLAYER_NONCES_COLL',           'player_nonces'),
       globalLeaderboard: e('GLOBAL_LEADERBOARD_COLL',      'global_leaderboards'),
+      kultPoints:          e('KULT_POINTS_COLL',             'kult_points'),
       gameLbConfig:      e('GAME_LEADERBOARD_CONFIG_COLL', 'store_games_leaderboards'),
       aiModels:          e('AI_MODELS_COLL',               'ai_models'),
       sharedPosts:       e('SHARED_POSTS_COLL',            'shared_posts'),

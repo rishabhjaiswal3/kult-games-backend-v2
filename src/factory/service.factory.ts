@@ -19,6 +19,8 @@ import { CommentsRepository } from '../modules/moments/comments.repository';
 import { CommentsService } from '../modules/moments/comments.service';
 import { SocialPostRepository } from '../modules/social-media/social-media.repository';
 import { OnchainActivityRepository } from '../modules/onchain/onchain.repository';
+import { KultPointsRepository } from '../modules/kult-points/kult-points.repository';
+import { KultPointsService } from '../modules/kult-points/kult-points.service';
 
 // Services
 import { PlayerService } from '../modules/player/player.service';
@@ -58,6 +60,7 @@ export class ServiceFactory {
   private commentsRepo()        { return this.singleton('commentsRepo',   () => new CommentsRepository(this.db)); }
   private socialPostRepo()      { return this.singleton('socialPostRepo', () => new SocialPostRepository(this.db)); }
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
+  private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -141,9 +144,14 @@ export class ServiceFactory {
         this.globalLbRepo(),
         this.createGameLeaderboardService(),
         this.agentRepo(),
+        this.createKultPointsService(),
         (playerId, code, ip) => this.createReferralService().processSignup(playerId, code, ip),
       ),
     );
+  }
+
+  createKultPointsService(): KultPointsService {
+    return this.singleton('kultPointsService', () => new KultPointsService(this.kultPointsRepo()));
   }
 
   createAccessCodeService(): AccessCodeService {
