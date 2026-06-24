@@ -1,7 +1,6 @@
 import { AppError } from '../../core/error';
 import {
   clampKultPoints,
-  DEFAULT_KULT_POINTS,
 } from '../kult-points/kult-points.model';
 import { KultPointsRepository } from '../kult-points/kult-points.repository';
 
@@ -35,7 +34,7 @@ export class InternalKultPointsService {
     const entry = await this.kultPointsRepository.findByWallet(wallet);
     return toBalance(
       wallet,
-      entry?.kultPoints ?? DEFAULT_KULT_POINTS,
+      await this.kultPointsRepository.getBalance(wallet),
       entry?.updatedAt,
       this.kultPointsRepository,
     );
@@ -71,7 +70,7 @@ function normalizeWallet(walletAddress: unknown): string {
   if (typeof walletAddress !== 'string' || !walletAddress.trim()) {
     throw AppError.badRequest('walletAddress is required');
   }
-  return walletAddress.trim();
+  return walletAddress.trim().toLowerCase();
 }
 
 function normalizeAction(action: unknown): KultPointsAction {

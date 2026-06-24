@@ -1,5 +1,5 @@
 import { AppError } from '../../core/error';
-import { clampKultPoints, DEFAULT_KULT_POINTS } from './kult-points.model';
+import { clampKultPoints } from './kult-points.model';
 import { KultPointsRepository } from './kult-points.repository';
 
 export interface KultPointsBalance {
@@ -16,7 +16,7 @@ export class KultPointsService {
   async getKultPoints(walletAddress: string): Promise<KultPointsBalance> {
     const wallet = normalizeWallet(walletAddress);
     const entry = await this.kultPointsRepository.findByWallet(wallet);
-    const kultPoints = clampKultPoints(entry?.kultPoints ?? DEFAULT_KULT_POINTS);
+    const kultPoints = clampKultPoints(await this.kultPointsRepository.getBalance(wallet));
 
     const rank = kultPoints > 0
       ? (await this.kultPointsRepository.countRankByKultPoints(kultPoints)) + 1
@@ -36,7 +36,7 @@ function normalizeWallet(walletAddress: unknown): string {
   if (typeof walletAddress !== 'string' || !walletAddress.trim()) {
     throw AppError.badRequest('walletAddress is required');
   }
-  return walletAddress.trim();
+  return walletAddress.trim().toLowerCase();
 }
 
 function calculateLevel(kultPoints: number): number {
