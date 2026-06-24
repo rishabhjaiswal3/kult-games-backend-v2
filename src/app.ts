@@ -71,6 +71,10 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/internal/kult-points', internalKultPointsRouter(services.createInternalKultPointsService()));
   // Legacy alias — remove once callers migrate to /api/internal/kult-points
   app.use('/api/internal/kp', internalKultPointsRouter(services.createInternalKultPointsService()));
+  // DigitalOcean app routing can strip `/api` before forwarding to Express.
+  // Keep direct internal aliases so server-to-server KP calls still resolve.
+  app.use('/internal/kult-points', internalKultPointsRouter(services.createInternalKultPointsService()));
+  app.use('/internal/kp', internalKultPointsRouter(services.createInternalKultPointsService()));
   app.use('/api/games',        gameRouter(services.createGameService()));
   app.use('/api/content',      contentRouter(services.createContentService()));
   app.use('/api/leaderboard',  leaderboardRouter(services.createGlobalLeaderboardService(), services.createGameLeaderboardService()));
