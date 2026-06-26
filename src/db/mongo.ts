@@ -80,6 +80,13 @@ export async function ensureIndexes(database: Db): Promise<void> {
     createIndexes(database, col.momentLikes, [
       { key: { momentId: 1, authorWalletAddress: 1 }, unique: true },
     ]),
+    createIndexes(database, col.momentBookmarks, [
+      { key: { playerWalletAddress: 1, momentId: 1 }, unique: true },
+      { key: { playerWalletAddress: 1, createdAt: -1 } },
+    ]),
+    createIndexes(database, col.momentWatchHistory, [
+      { key: { playerWalletAddress: 1 }, unique: true },
+    ]),
     createIndexes(database, col.sharedPosts, [
       { key: { wallet_address: 1, created_at: -1 } },
       { key: { platform: 1, post_id: 1 }, unique: true },

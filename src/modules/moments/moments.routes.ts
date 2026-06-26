@@ -21,16 +21,44 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     }
   });
 
-  // GET /api/moments — public feed
+  // GET /api/moments — public feed with filters
+  //
+  // Query params:
+  //   page, per_page          — pagination (default 1 / 20, max 50)
+  //   tags                    — comma-separated tag list
+  //   search, searchQuery     — full-text search on title/description/tags
+  //   media_type              — "image" | "video"
+  //   game                    — related-game slug (e.g. "robowars", "warzonewarriors")
+  //   mode                    — "ai_arena" | "trash_talk" | "league"
+  //   date                    — "last_24h" | "this_week" | "this_month"
+  //   sort                    — "newest" (default) | "most_liked" | "top_creator"
   router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
       const perPage = Math.min(50, parseInt(req.query['per_page'] as string) || 20);
+
       const tags = (req.query['tags'] as string)?.split(',').map((t) => t.trim()).filter(Boolean);
-      const search = req.query['search-query'] as string | undefined ?? req.query['searchQuery'] as string | undefined;
+      const search = (req.query['search-query'] as string | undefined) ?? (req.query['searchQuery'] as string | undefined);
+
       const rawMediaType = req.query['media_type'] as string | undefined;
       const mediaType = rawMediaType === 'image' || rawMediaType === 'video' ? rawMediaType : undefined;
-      const data = await service.getFeed(page, perPage, tags, search, mediaType);
+
+      const rawGame = req.query['game'] as string | undefined;
+      const game = rawGame?.trim() || undefined;
+
+      const rawMode = req.query['mode'] as string | undefined;
+      const mode = (rawMode === 'ai_arena' || rawMode === 'trash_talk' || rawMode === 'league')
+        ? rawMode : undefined;
+
+      const rawDate = req.query['date'] as string | undefined;
+      const dateWindow = (rawDate === 'last_24h' || rawDate === 'this_week' || rawDate === 'this_month')
+        ? rawDate : undefined;
+
+      const rawSort = req.query['sort'] as string | undefined;
+      const sortBy = (rawSort === 'most_liked' || rawSort === 'top_creator')
+        ? rawSort : 'newest';
+
+      const data = await service.getFeed(page, perPage, { tags, search, mediaType, game, mode, dateWindow, sortBy });
       ok(res, data);
     } catch (err) {
       next(err);
@@ -47,6 +75,26 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     } catch (err) {
       next(err);
     }
+  });
+
+  // GET /api/moments/bookmarks
+  router.get('/bookmarks', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(50, parseInt(req.query['per_page'] as string) || 20);
+      const data = await service.getBookmarks(req.player!.walletAddress, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/moments/recently-watched
+  router.get('/recently-watched', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(20, parseInt(req.query['per_page'] as string) || 20);
+      const data = await service.getRecentlyWatched(req.player!.walletAddress, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
   });
 
   // ── Comment sub-routes — must come before /:momentId to avoid route shadowing ──
@@ -159,6 +207,30 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     } catch (err) {
       next(err);
     }
+  });
+
+  // GET /api/moments/:momentId/bookmark — check bookmark status
+  router.get('/:momentId/bookmark', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.getBookmarkStatus(req.player!.walletAddress, req.params['momentId']!);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/:momentId/bookmark — toggle bookmark
+  router.post('/:momentId/bookmark', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.toggleBookmark(req.player!.walletAddress, req.params['momentId']!);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/:momentId/watch — record view in watch history
+  router.post('/:momentId/watch', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await service.recordWatch(req.player!.walletAddress, req.params['momentId']!);
+      res.status(204).end();
+    } catch (err) { next(err); }
   });
 
   // GET /api/moments/:momentId/comments

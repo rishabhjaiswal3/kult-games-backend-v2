@@ -14,7 +14,7 @@ import { GameRepository } from '../modules/game/game.repository';
 import { ContentRepository } from '../modules/content/content.repository';
 import { GlobalLeaderboardRepository, GameLeaderboardConfigRepository } from '../modules/leaderboard/leaderboard.repository';
 import { ListingRepository, OrderRepository } from '../modules/marketplace/marketplace.repository';
-import { MomentsRepository, MomentLikesRepository, DaEventRepository } from '../modules/moments/moments.repository';
+import { MomentsRepository, MomentLikesRepository, DaEventRepository, BookmarksRepository, WatchHistoryRepository } from '../modules/moments/moments.repository';
 import { CommentsRepository } from '../modules/moments/comments.repository';
 import { CommentsService } from '../modules/moments/comments.service';
 import { SocialPostRepository } from '../modules/social-media/social-media.repository';
@@ -55,10 +55,12 @@ export class ServiceFactory {
   private gameLbConfigRepo()    { return this.singleton('gameLbCfgRepo',  () => new GameLeaderboardConfigRepository(this.db)); }
   private listingRepo()         { return this.singleton('listingRepo',    () => new ListingRepository(this.db)); }
   private orderRepo()           { return this.singleton('orderRepo',      () => new OrderRepository(this.db)); }
-  private momentsRepo()         { return this.singleton('momentsRepo',    () => new MomentsRepository(this.db)); }
-  private likesRepo()           { return this.singleton('likesRepo',      () => new MomentLikesRepository(this.db)); }
-  private daEventRepo()         { return this.singleton('daEventRepo',    () => new DaEventRepository(this.db)); }
-  private commentsRepo()        { return this.singleton('commentsRepo',   () => new CommentsRepository(this.db)); }
+  private momentsRepo()         { return this.singleton('momentsRepo',       () => new MomentsRepository(this.db)); }
+  private likesRepo()           { return this.singleton('likesRepo',         () => new MomentLikesRepository(this.db)); }
+  private daEventRepo()         { return this.singleton('daEventRepo',       () => new DaEventRepository(this.db)); }
+  private bookmarksRepo()       { return this.singleton('bookmarksRepo',     () => new BookmarksRepository(this.db)); }
+  private watchHistoryRepo()    { return this.singleton('watchHistoryRepo',  () => new WatchHistoryRepository(this.db)); }
+  private commentsRepo()        { return this.singleton('commentsRepo',      () => new CommentsRepository(this.db)); }
   private socialPostRepo()      { return this.singleton('socialPostRepo', () => new SocialPostRepository(this.db)); }
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
   private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
@@ -109,6 +111,8 @@ export class ServiceFactory {
         this.daEventRepo(),
         this.migrationQueue(),
         this.createOnchainService(),
+        this.bookmarksRepo(),
+        this.watchHistoryRepo(),
       ),
     );
   }

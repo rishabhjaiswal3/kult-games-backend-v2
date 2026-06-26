@@ -1,7 +1,66 @@
 import { Db, Document } from 'mongodb';
 import { BaseRepository } from '../../core/types';
 import { config } from '../../config';
-import { MomentModel, MomentLikeModel, DaEventModel } from './moments.model';
+import { MomentModel, MomentLikeModel, DaEventModel, MomentBookmarkModel, MomentWatchHistoryModel } from './moments.model';
+
+export type MomentSortBy = 'newest' | 'most_liked' | 'top_creator';
+export type MomentMode   = 'ai_arena' | 'trash_talk' | 'league';
+export type MomentDate   = 'last_24h' | 'this_week' | 'this_month';
+
+export interface MomentFeedOptions {
+  tags?: string[];
+  search?: string;
+  mediaType?: 'image' | 'video';
+  game?: string;
+  mode?: MomentMode;
+  dateWindow?: MomentDate;
+  sortBy?: MomentSortBy;
+}
+
+function buildModeFilter(mode: MomentMode): Document {
+  if (mode === 'ai_arena') {
+    return {
+      $or: [
+        { 'assetMetadata.mode': { $regex: /^ai.?arena$/i } },
+        { relatedGames: { $in: ['robowars', 'guesstheai', 'zerodash', 'zerogpool'] } },
+        { tags:  { $in: ['aiarena', 'ai arena'] } },
+        { title: { $regex: /ai.?arena/i } },
+      ],
+    };
+  }
+  if (mode === 'trash_talk') {
+    return {
+      $or: [
+        { 'assetMetadata.mode': { $regex: /^trash.?talk$/i } },
+        { tags:  { $in: ['trashtalk', 'trash talk'] } },
+        { title: { $regex: /trash.?talk/i } },
+      ],
+    };
+  }
+  // league
+  return {
+    $or: [
+      { 'assetMetadata.mode': { $regex: /^league$/i } },
+      { tags:  'league' },
+      { title: { $regex: /league/i } },
+    ],
+  };
+}
+
+function buildDateFilter(dateWindow: MomentDate): Document {
+  const now = new Date();
+  if (dateWindow === 'last_24h') {
+    return { createdAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } };
+  }
+  if (dateWindow === 'this_week') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    return { createdAt: { $gte: start } };
+  }
+  // this_month
+  return { createdAt: { $gte: new Date(now.getFullYear(), now.getMonth(), 1) } };
+}
 
 export class MomentsRepository extends BaseRepository {
   constructor(db: Db) {
@@ -19,14 +78,19 @@ export class MomentsRepository extends BaseRepository {
   async getFeed(
     skip: number,
     limit: number,
-    tags?: string[],
-    search?: string,
-    mediaType?: 'image' | 'video',
+    options: MomentFeedOptions = {},
   ): Promise<{ moments: MomentModel[]; totalCount: number }> {
+    const { tags, search, mediaType, game, mode, dateWindow, sortBy = 'newest' } = options;
+
     const filter: Document = {};
-    if (tags?.length) filter['tags'] = { $in: tags };
+
+    if (tags?.length)  filter['tags'] = { $in: tags };
+    if (game)          filter['relatedGames'] = game;
+    if (mode)          Object.assign(filter, buildModeFilter(mode));
+    if (dateWindow)    Object.assign(filter, buildDateFilter(dateWindow));
+
     if (search) {
-      const re = new RegExp(search, 'i');
+      const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       filter['$or'] = [{ title: re }, { description: re }, { tags: re }];
     }
     if (mediaType === 'image') {
@@ -35,10 +99,36 @@ export class MomentsRepository extends BaseRepository {
       filter['assetMetadata.fileType'] = { $regex: /^video\//i };
     }
 
-    const [moments, totalCount] = await Promise.all([
-      this.collection.find<MomentModel>(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
-      this.collection.countDocuments(filter),
-    ]);
+    const totalCount = await this.collection.countDocuments(filter);
+
+    let moments: MomentModel[];
+
+    if (sortBy === 'top_creator') {
+      // Group by creator → rank by moment count → unwind → sort by rank then recency
+      const pipeline = [
+        { $match: filter },
+        { $group: { _id: '$playerWalletAddress', _count: { $sum: 1 }, _docs: { $push: '$$ROOT' } } },
+        { $unwind: '$_docs' },
+        { $replaceRoot: { newRoot: { $mergeObjects: ['$_docs', { _creatorCount: '$_count' }] } } },
+        { $sort: { _creatorCount: -1, createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { _creatorCount: 0 } },
+      ];
+      moments = await this.collection.aggregate<MomentModel>(pipeline).toArray();
+    } else {
+      const sort: Document = sortBy === 'most_liked'
+        ? { numLikes: -1, createdAt: -1 }
+        : { createdAt: -1 };
+
+      moments = await this.collection
+        .find<MomentModel>(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+    }
+
     return { moments, totalCount };
   }
 
@@ -79,6 +169,15 @@ export class MomentsRepository extends BaseRepository {
       { $inc: { numComments: delta }, $set: { updatedAt: new Date() } },
     );
     return result.matchedCount > 0;
+  }
+
+  async findByMomentIds(momentIds: string[]): Promise<MomentModel[]> {
+    if (!momentIds.length) return [];
+    const docs = await this.collection
+      .find<MomentModel>({ momentId: { $in: momentIds } })
+      .toArray();
+    const byId = new Map(docs.map((d) => [d.momentId, d]));
+    return momentIds.map((id) => byId.get(id)).filter((d): d is MomentModel => Boolean(d));
   }
 
   async findPendingMigration(limit: number): Promise<MomentModel[]> {
@@ -137,5 +236,90 @@ export class DaEventRepository extends BaseRepository {
       .find<DaEventModel>({ momentId })
       .sort({ createdAt: -1 })
       .toArray();
+  }
+}
+
+export class BookmarksRepository extends BaseRepository {
+  constructor(db: Db) {
+    super(db, config.db.col.momentBookmarks);
+  }
+
+  async toggle(momentId: string, wallet: string): Promise<{ bookmarked: boolean }> {
+    const existing = await this.collection.findOne({ momentId, playerWalletAddress: wallet });
+    if (existing) {
+      await this.collection.deleteOne({ momentId, playerWalletAddress: wallet });
+      return { bookmarked: false };
+    }
+    await this.collection.insertOne({
+      momentId,
+      playerWalletAddress: wallet,
+      createdAt: new Date(),
+    } as MomentBookmarkModel);
+    return { bookmarked: true };
+  }
+
+  async isBookmarked(momentId: string, wallet: string): Promise<boolean> {
+    const count = await this.collection.countDocuments({ momentId, playerWalletAddress: wallet });
+    return count > 0;
+  }
+
+  async getPage(wallet: string, skip: number, limit: number): Promise<{ momentIds: string[]; totalCount: number }> {
+    const [docs, totalCount] = await Promise.all([
+      this.collection
+        .find<MomentBookmarkModel>({ playerWalletAddress: wallet })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      this.collection.countDocuments({ playerWalletAddress: wallet }),
+    ]);
+    return { momentIds: docs.map((d) => d.momentId), totalCount };
+  }
+}
+
+export class WatchHistoryRepository extends BaseRepository {
+  constructor(db: Db) {
+    super(db, config.db.col.momentWatchHistory);
+  }
+
+  async addWatch(wallet: string, momentId: string): Promise<void> {
+    await this.collection.updateOne(
+      { playerWalletAddress: wallet },
+      [
+        {
+          $set: {
+            playerWalletAddress: wallet,
+            momentIds: {
+              $slice: [
+                {
+                  $concatArrays: [
+                    [momentId],
+                    {
+                      $filter: {
+                        input: { $ifNull: ['$momentIds', []] },
+                        as: 'id',
+                        cond: { $ne: ['$$id', momentId] },
+                      },
+                    },
+                  ],
+                },
+                20,
+              ],
+            },
+            updatedAt: '$$NOW',
+          },
+        },
+      ] as Document[],
+      { upsert: true },
+    );
+  }
+
+  async getPage(wallet: string, skip: number, limit: number): Promise<{ momentIds: string[]; totalCount: number }> {
+    const doc = await this.collection.findOne<MomentWatchHistoryModel>({ playerWalletAddress: wallet });
+    const allIds = doc?.momentIds ?? [];
+    return {
+      momentIds: allIds.slice(skip, skip + limit),
+      totalCount: allIds.length,
+    };
   }
 }

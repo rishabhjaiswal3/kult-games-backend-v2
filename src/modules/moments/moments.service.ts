@@ -4,7 +4,7 @@ import { logger } from '../../db/logger';
 import { config } from '../../config';
 import { ValkyQueue } from '../../db/redis';
 import { fileExists } from '../../external/spaces';
-import { MomentsRepository, MomentLikesRepository, DaEventRepository } from './moments.repository';
+import { MomentsRepository, MomentLikesRepository, DaEventRepository, BookmarksRepository, WatchHistoryRepository, MomentFeedOptions, MomentSortBy, MomentMode, MomentDate } from './moments.repository';
 import { MomentModel, CreateMomentRequest, UpdateMomentRequest, MigrationJob } from './moments.model';
 import type { OnchainActivityService } from '../onchain/onchain.service';
 
@@ -22,6 +22,8 @@ export class MomentsService {
     private readonly daEventRepo: DaEventRepository | null,
     private readonly migrationQueue: ValkyQueue | null,
     private readonly onchainService: OnchainActivityService | null,
+    private readonly bookmarksRepo: BookmarksRepository,
+    private readonly watchHistoryRepo: WatchHistoryRepository,
   ) {}
 
   async createMoment(wallet: string, req: CreateMomentRequest) {
@@ -78,9 +80,9 @@ export class MomentsService {
     return { momentId, message: 'Moment created successfully' };
   }
 
-  async getFeed(page: number, perPage: number, tags?: string[], search?: string, mediaType?: 'image' | 'video') {
+  async getFeed(page: number, perPage: number, options: MomentFeedOptions = {}) {
     const skip = (page - 1) * perPage;
-    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, tags, search, mediaType);
+    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, options);
     return {
       moments: moments.map(toResponse),
       totalCount,
@@ -180,6 +182,47 @@ export class MomentsService {
       zgUploadedAt: moment.zgUploadedAt,
       gatewayUrl: moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null,
       explorerUrl: moment.assetZgTxHash ? config.zg.explorerUrlFor(moment.assetZgTxHash) : null,
+    };
+  }
+
+  async toggleBookmark(wallet: string, momentId: string) {
+    const moment = await this.repo.findByMomentId(momentId);
+    if (!moment) throw AppError.notFound('Moment not found');
+    return this.bookmarksRepo.toggle(momentId, wallet);
+  }
+
+  async getBookmarkStatus(wallet: string, momentId: string) {
+    const bookmarked = await this.bookmarksRepo.isBookmarked(momentId, wallet);
+    return { bookmarked };
+  }
+
+  async getBookmarks(wallet: string, page: number, perPage: number) {
+    const skip = (page - 1) * perPage;
+    const { momentIds, totalCount } = await this.bookmarksRepo.getPage(wallet, skip, perPage);
+    const moments = await this.repo.findByMomentIds(momentIds);
+    return {
+      moments: moments.map(toResponse),
+      totalCount,
+      page,
+      perPage,
+      totalPages: totalCount === 0 ? 0 : Math.ceil(totalCount / perPage),
+    };
+  }
+
+  async recordWatch(wallet: string, momentId: string) {
+    await this.watchHistoryRepo.addWatch(wallet, momentId);
+  }
+
+  async getRecentlyWatched(wallet: string, page: number, perPage: number) {
+    const skip = (page - 1) * perPage;
+    const { momentIds, totalCount } = await this.watchHistoryRepo.getPage(wallet, skip, perPage);
+    const moments = await this.repo.findByMomentIds(momentIds);
+    return {
+      moments: moments.map(toResponse),
+      totalCount,
+      page,
+      perPage,
+      totalPages: totalCount === 0 ? 0 : Math.ceil(totalCount / perPage),
     };
   }
 
