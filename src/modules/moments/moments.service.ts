@@ -4,7 +4,7 @@ import { logger } from '../../db/logger';
 import { config } from '../../config';
 import { ValkyQueue } from '../../db/redis';
 import { fileExists } from '../../external/spaces';
-import { MomentsRepository, MomentLikesRepository, DaEventRepository } from './moments.repository';
+import { MomentsRepository, MomentLikesRepository, DaEventRepository, MomentFeedOptions, MomentSortBy, MomentMode, MomentDate } from './moments.repository';
 import { MomentModel, CreateMomentRequest, UpdateMomentRequest, MigrationJob } from './moments.model';
 import type { OnchainActivityService } from '../onchain/onchain.service';
 
@@ -78,9 +78,9 @@ export class MomentsService {
     return { momentId, message: 'Moment created successfully' };
   }
 
-  async getFeed(page: number, perPage: number, tags?: string[], search?: string, mediaType?: 'image' | 'video') {
+  async getFeed(page: number, perPage: number, options: MomentFeedOptions = {}) {
     const skip = (page - 1) * perPage;
-    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, tags, search, mediaType);
+    const { moments, totalCount } = await this.repo.getFeed(skip, perPage, options);
     return {
       moments: moments.map(toResponse),
       totalCount,
