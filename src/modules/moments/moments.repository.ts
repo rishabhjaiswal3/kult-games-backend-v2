@@ -1,7 +1,7 @@
 import { Db, Document } from 'mongodb';
 import { BaseRepository } from '../../core/types';
 import { config } from '../../config';
-import { MomentModel, MomentLikeModel, DaEventModel } from './moments.model';
+import { MomentModel, MomentLikeModel, DaEventModel, MomentBookmarkModel, MomentWatchHistoryModel } from './moments.model';
 
 export type MomentSortBy = 'newest' | 'most_liked' | 'top_creator';
 export type MomentMode   = 'ai_arena' | 'trash_talk' | 'league';
@@ -171,6 +171,15 @@ export class MomentsRepository extends BaseRepository {
     return result.matchedCount > 0;
   }
 
+  async findByMomentIds(momentIds: string[]): Promise<MomentModel[]> {
+    if (!momentIds.length) return [];
+    const docs = await this.collection
+      .find<MomentModel>({ momentId: { $in: momentIds } })
+      .toArray();
+    const byId = new Map(docs.map((d) => [d.momentId, d]));
+    return momentIds.map((id) => byId.get(id)).filter((d): d is MomentModel => Boolean(d));
+  }
+
   async findPendingMigration(limit: number): Promise<MomentModel[]> {
     return this.collection
       .find<MomentModel>({ zgStatus: 'pending', assetUrl: { $exists: true, $ne: null } })
@@ -227,5 +236,90 @@ export class DaEventRepository extends BaseRepository {
       .find<DaEventModel>({ momentId })
       .sort({ createdAt: -1 })
       .toArray();
+  }
+}
+
+export class BookmarksRepository extends BaseRepository {
+  constructor(db: Db) {
+    super(db, config.db.col.momentBookmarks);
+  }
+
+  async toggle(momentId: string, wallet: string): Promise<{ bookmarked: boolean }> {
+    const existing = await this.collection.findOne({ momentId, playerWalletAddress: wallet });
+    if (existing) {
+      await this.collection.deleteOne({ momentId, playerWalletAddress: wallet });
+      return { bookmarked: false };
+    }
+    await this.collection.insertOne({
+      momentId,
+      playerWalletAddress: wallet,
+      createdAt: new Date(),
+    } as MomentBookmarkModel);
+    return { bookmarked: true };
+  }
+
+  async isBookmarked(momentId: string, wallet: string): Promise<boolean> {
+    const count = await this.collection.countDocuments({ momentId, playerWalletAddress: wallet });
+    return count > 0;
+  }
+
+  async getPage(wallet: string, skip: number, limit: number): Promise<{ momentIds: string[]; totalCount: number }> {
+    const [docs, totalCount] = await Promise.all([
+      this.collection
+        .find<MomentBookmarkModel>({ playerWalletAddress: wallet })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      this.collection.countDocuments({ playerWalletAddress: wallet }),
+    ]);
+    return { momentIds: docs.map((d) => d.momentId), totalCount };
+  }
+}
+
+export class WatchHistoryRepository extends BaseRepository {
+  constructor(db: Db) {
+    super(db, config.db.col.momentWatchHistory);
+  }
+
+  async addWatch(wallet: string, momentId: string): Promise<void> {
+    await this.collection.updateOne(
+      { playerWalletAddress: wallet },
+      [
+        {
+          $set: {
+            playerWalletAddress: wallet,
+            momentIds: {
+              $slice: [
+                {
+                  $concatArrays: [
+                    [momentId],
+                    {
+                      $filter: {
+                        input: { $ifNull: ['$momentIds', []] },
+                        as: 'id',
+                        cond: { $ne: ['$$id', momentId] },
+                      },
+                    },
+                  ],
+                },
+                20,
+              ],
+            },
+            updatedAt: '$$NOW',
+          },
+        },
+      ] as Document[],
+      { upsert: true },
+    );
+  }
+
+  async getPage(wallet: string, skip: number, limit: number): Promise<{ momentIds: string[]; totalCount: number }> {
+    const doc = await this.collection.findOne<MomentWatchHistoryModel>({ playerWalletAddress: wallet });
+    const allIds = doc?.momentIds ?? [];
+    return {
+      momentIds: allIds.slice(skip, skip + limit),
+      totalCount: allIds.length,
+    };
   }
 }

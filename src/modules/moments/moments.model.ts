@@ -76,6 +76,20 @@ export interface MigrationJob {
   attempt: number;
 }
 
+export interface MomentBookmarkModel {
+  _id?: ObjectId;
+  playerWalletAddress: string;
+  momentId: string;
+  createdAt: Date;
+}
+
+export interface MomentWatchHistoryModel {
+  _id?: ObjectId;
+  playerWalletAddress: string;
+  momentIds: string[];
+  updatedAt: Date;
+}
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 export interface CommentModel {

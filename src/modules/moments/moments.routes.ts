@@ -77,6 +77,26 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     }
   });
 
+  // GET /api/moments/bookmarks
+  router.get('/bookmarks', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(50, parseInt(req.query['per_page'] as string) || 20);
+      const data = await service.getBookmarks(req.player!.walletAddress, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/moments/recently-watched
+  router.get('/recently-watched', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page    = Math.max(1, parseInt(req.query['page'] as string) || 1);
+      const perPage = Math.min(20, parseInt(req.query['per_page'] as string) || 20);
+      const data = await service.getRecentlyWatched(req.player!.walletAddress, page, perPage);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
   // ── Comment sub-routes — must come before /:momentId to avoid route shadowing ──
 
   // GET /api/moments/comments/:commentId/replies
@@ -187,6 +207,30 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     } catch (err) {
       next(err);
     }
+  });
+
+  // GET /api/moments/:momentId/bookmark — check bookmark status
+  router.get('/:momentId/bookmark', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.getBookmarkStatus(req.player!.walletAddress, req.params['momentId']!);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/:momentId/bookmark — toggle bookmark
+  router.post('/:momentId/bookmark', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await service.toggleBookmark(req.player!.walletAddress, req.params['momentId']!);
+      ok(res, data);
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/moments/:momentId/watch — record view in watch history
+  router.post('/:momentId/watch', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await service.recordWatch(req.player!.walletAddress, req.params['momentId']!);
+      res.status(204).end();
+    } catch (err) { next(err); }
   });
 
   // GET /api/moments/:momentId/comments
