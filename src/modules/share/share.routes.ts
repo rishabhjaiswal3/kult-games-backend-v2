@@ -127,6 +127,42 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
 </html>`;
 }
 
+/**
+ * Express handler for GET /moments/:momentId
+ * Serves OG-tag HTML for crawlers; humans get a JS redirect to the SPA.
+ * Register this BEFORE the legacy-prefix rewriter so the URL isn't rewritten
+ * to /api/moments/:momentId (which returns JSON, not HTML).
+ *
+ * DigitalOcean routing note:
+ *   By default DO routes /api/* to this service and everything else to the
+ *   static frontend. To make the SPA page URL work for social sharing you
+ *   must add a route rule in the DO app spec:
+ *     { match: { path: { prefix: "/moments" } }, component: { name: "<backend-service-name>" } }
+ *   Place it ABOVE the static-site catch-all rule.
+ */
+export function createMomentSpaOgHandler(repo: MomentsRepository) {
+  return async (req: Request, res: Response, next: () => void) => {
+    const momentId = (req.params as { momentId?: string }).momentId?.trim();
+    if (!momentId) return next();
+
+    const spaUrl = buildMomentPageUrl(req, momentId);
+    try {
+      const moment = await repo.findByMomentId(momentId);
+      if (!moment) return res.redirect(302, spaUrl);
+
+      const html = buildShareHtml(req, moment, momentId);
+      const ua = req.headers['user-agent'] ?? '';
+      return res
+        .status(200)
+        .set('Content-Type', 'text/html; charset=utf-8')
+        .set('Cache-Control', isCrawler(ua) ? 'public, max-age=60, stale-while-revalidate=300' : 'no-store')
+        .send(html);
+    } catch {
+      return res.redirect(302, spaUrl);
+    }
+  };
+}
+
 export function shareRouter(repo: MomentsRepository): Router {
   const router = Router();
   const momentShareImageHandler = createMomentShareImageHandler(repo);
