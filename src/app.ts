@@ -47,15 +47,19 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use(localization);
 
   // ── SPA-URL social-share handler — MUST be before the legacy-prefix rewriter ──
-  // When DigitalOcean routes /moments/* to this service (instead of the static
-  // frontend), this handler serves OG-tag HTML so Twitter/Telegram/WhatsApp/etc.
-  // crawlers pick up the correct moment image, title, and description.
-  // Humans are instantly redirected to the SPA via a <script> tag in the HTML.
+  // Serves OG-tag HTML for browser/crawler requests to /moments/:id so that
+  // Twitter, Telegram, WhatsApp, Discord etc. embed the correct moment image.
+  // API clients (axios) send Accept: application/json → handler passes them through
+  // to the legacy rewriter → moments JSON API (no breakage).
   //
-  // DO routing change required (app spec):
-  //   Add a route rule matching { prefix: "/moments" } pointing to this service,
-  //   placed ABOVE the static-site catch-all rule.
-  app.get('/moments/:momentId', createMomentSpaOgHandler(services.getMomentsRepo()));
+  // DO routing: the "/moments" route rule in DO should use preserve_path_prefix: true
+  // (not "Path trimmed") so Express receives the full /moments/:momentId path.
+  // With "Path trimmed" DO strips /moments and sends /:momentId — handled below.
+  const momentOgHandler = createMomentSpaOgHandler(services.getMomentsRepo());
+  // Full path — when DO uses preserve_path_prefix: true for the /moments route
+  app.get('/moments/:momentId', momentOgHandler);
+  // Trimmed path — when DO uses "Path trimmed" (strips the /moments prefix)
+  app.get('/:momentId', momentOgHandler);
 
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.

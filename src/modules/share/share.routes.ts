@@ -142,6 +142,12 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
  */
 export function createMomentSpaOgHandler(repo: MomentsRepository) {
   return async (req: Request, res: Response, next: () => void) => {
+    // API clients (axios from React app) send Accept: application/json — pass those through
+    // so the legacy-prefix rewriter can forward them to the moments JSON API.
+    // Browsers and social crawlers send Accept: text/html — serve OG HTML for those.
+    const accept = req.headers['accept'] ?? '';
+    if (accept && !accept.includes('text/html')) return next();
+
     const momentId = (req.params as { momentId?: string }).momentId?.trim();
     if (!momentId) return next();
 
