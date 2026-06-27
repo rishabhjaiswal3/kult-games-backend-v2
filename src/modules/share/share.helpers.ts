@@ -2,28 +2,39 @@ import type { Request } from 'express';
 import { config } from '../../config';
 import type { MomentModel } from '../moments/moments.model';
 
+const VIDEO_URL_EXT = /\.(mp4|webm|mov|m4v|ogv)(?:\?.*)?$/i;
+
 export function isVideoMoment(moment: MomentModel): boolean {
   const fileType = String(moment.assetMetadata?.['fileType'] ?? '').toLowerCase();
-  return fileType.startsWith('video/') || moment.assetMetadata?.['mediaType'] === 'video';
+  if (fileType.startsWith('video/') || moment.assetMetadata?.['mediaType'] === 'video') return true;
+  // Fallback: check the asset URL extension when fileType metadata is absent
+  const urlToCheck = (moment.assetUrl ?? '').split('?')[0].toLowerCase();
+  return VIDEO_URL_EXT.test(urlToCheck);
 }
 
 export function resolveSourceImageUrl(moment: MomentModel): string | undefined {
   const meta = moment.assetMetadata ?? {};
+
+  // 1. Explicit OG image override in metadata (highest priority)
   const ogImageUrl = meta['ogImageUrl'];
   if (typeof ogImageUrl === 'string' && ogImageUrl.trim()) {
     return ogImageUrl.trim();
   }
 
   if (isVideoMoment(moment)) {
-    const thumbnailUrl = meta['thumbnailUrl'];
-    if (typeof thumbnailUrl === 'string' && thumbnailUrl.trim()) {
-      return thumbnailUrl.trim();
+    // 2. Explicit thumbnail from metadata
+    for (const key of ['thumbnailUrl', 'thumbnail', 'posterUrl', 'poster', 'coverImage', 'previewUrl']) {
+      const val = meta[key];
+      if (typeof val === 'string' && val.trim()) return val.trim();
     }
+    // 3. Fall back to default Kult logo for video-only moments
     return config.share.defaultOgImage || undefined;
   }
 
+  // Image moment — use the actual asset URL (proxy converts any format to JPEG)
   if (moment.assetUrl?.trim()) return moment.assetUrl.trim();
 
+  // ZG-stored asset (hash → gateway URL)
   const zgUrl = moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null;
   return zgUrl ?? undefined;
 }
