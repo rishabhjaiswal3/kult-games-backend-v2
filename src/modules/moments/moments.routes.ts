@@ -87,6 +87,15 @@ export function momentsRouter(service: MomentsService, comments: CommentsService
     } catch (err) { next(err); }
   });
 
+  // GET /api/moments/top-creators
+  router.get('/top-creators', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = Math.min(10, parseInt(req.query['limit'] as string) || 10);
+      const data = await service.getTopCreators(limit);
+      ok(res, { creators: data });
+    } catch (err) { next(err); }
+  });
+
   // GET /api/moments/recently-watched
   router.get('/recently-watched', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {

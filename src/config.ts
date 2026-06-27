@@ -89,6 +89,7 @@ export const config = {
       listings:           e('MARKETPLACE_LISTINGS_COLL',     'marketplace_listings'),
       orders:             e('MARKETPLACE_ORDERS_COLL',       'marketplace_orders'),
       daEvents:           'moment_da_events',
+      playerTitles:       e('PLAYER_TITLES_COLL', 'player_titles'),
     },
   },
 
