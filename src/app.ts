@@ -20,7 +20,7 @@ import { socialMediaRouter } from './modules/social-media/social-media.routes';
 import { referralRouter, referralRedirectRouter } from './modules/referral/referral.routes';
 import { uploadRouter } from './modules/upload/upload.routes';
 import { adminRouter } from './modules/admin/admin.routes';
-import { shareRouter } from './modules/share/share.routes';
+import { shareRouter, createMomentSpaOgHandler } from './modules/share/share.routes';
 import { accessCodeRouter } from './modules/access/access-code.routes';
 import { kultPointsRouter } from './modules/kult-points/kult-points.routes';
 import { internalKultPointsRouter } from './modules/internal-kult-points/internal-kult-points.routes';
@@ -45,6 +45,17 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use(express.json({ limit: '2mb' }));
   app.use(pinoHttp({ logger }));
   app.use(localization);
+
+  // ── SPA-URL social-share handler — MUST be before the legacy-prefix rewriter ──
+  // When DigitalOcean routes /moments/* to this service (instead of the static
+  // frontend), this handler serves OG-tag HTML so Twitter/Telegram/WhatsApp/etc.
+  // crawlers pick up the correct moment image, title, and description.
+  // Humans are instantly redirected to the SPA via a <script> tag in the HTML.
+  //
+  // DO routing change required (app spec):
+  //   Add a route rule matching { prefix: "/moments" } pointing to this service,
+  //   placed ABOVE the static-site catch-all rule.
+  app.get('/moments/:momentId', createMomentSpaOgHandler(services.getMomentsRepo()));
 
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.
