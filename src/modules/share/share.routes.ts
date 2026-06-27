@@ -64,6 +64,9 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
   const safeVideoAsset = videoAssetUrl ? escapeHtml(videoAssetUrl) : '';
   const safeSpaUrl = escapeHtml(spaUrl);
   const safeCanonicalUrl = escapeHtml(canonicalUrl);
+  // Hash-based redirect target: browsers go to /#m/:id which DO routes to the
+  // static SPA (path = "/"), avoiding an infinite loop back through this backend.
+  const safeHashRedirect = `/#m/${encodeURIComponent(momentId)}`;
   const defaultImg = config.share.defaultOgImage ? escapeHtml(config.share.defaultOgImage) : '';
   const ogImage = ogImageRaw ? escapeHtml(ogImageRaw) : defaultImg;
   const ogImageMime = resolveOgImageMimeType(ogImageRaw);
@@ -117,8 +120,9 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
   <meta property="og:locale" content="en_US" />${isVideo ? videoTags : `
   <meta property="og:type" content="article" />`}${imageTags}${twitterTags}
 
-  <!-- Redirect humans to the SPA immediately; crawlers skip script execution and read the OG tags above -->
-  <script>window.location.replace("${safeSpaUrl}");</script>
+  <!-- Redirect human browsers to the SPA via a hash URL (/#m/:id → static site → SPA handles it).
+       Crawlers do not execute JavaScript so they stay on this page and read the OG tags above. -->
+  <script>window.location.replace("${safeHashRedirect}");</script>
 </head>
 <body>
   <p>Opening <a href="${safeSpaUrl}">${title}</a> on ${siteName}...</p>
@@ -141,11 +145,11 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
  */
 export function createMomentSpaOgHandler(repo: MomentsRepository) {
   return async (req: Request, res: Response, next: () => void) => {
-    // API clients (axios from React app) send Accept: application/json — pass those through
-    // so the legacy-prefix rewriter can forward them to the moments JSON API.
-    // Browsers and social crawlers send Accept: text/html — serve OG HTML for those.
+    // Only pass through explicit JSON API requests (axios/fetch from the React app).
+    // Social crawlers send Accept: */* or no header — serve them OG HTML.
+    // Browsers send Accept: text/html,... — serve them OG HTML (with JS redirect to SPA).
     const accept = req.headers['accept'] ?? '';
-    if (accept && !accept.includes('text/html')) return next();
+    if (accept.includes('application/json')) return next();
 
     const momentId = (req.params as { momentId?: string }).momentId?.trim();
     if (!momentId) return next();
