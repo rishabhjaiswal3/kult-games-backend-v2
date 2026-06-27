@@ -3,11 +3,93 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { MomentsRepository } from '../moments/moments.repository';
 import { resolveSourceImageUrl } from './share.helpers';
+import type { MomentModel } from '../moments/moments.model';
 
 const DEFAULT_OG_IMAGE_SOURCE =
   'https://storage.googleapis.com/gpt-engineer-file-uploads/H3f4fSlZ9KaFAfzny5yMOG3UxmI2/social-images/social-1772817435284-Kult-Emblem-Variation.webp';
 
 const MAX_OG_LONG_EDGE = 1200;
+
+const GAME_COLORS: Record<string, string> = {
+  'ai-arena':   '#00d4ff',
+  'aiarena':    '#00d4ff',
+  'robowars':   '#ff6b35',
+  'robo':       '#ff6b35',
+  'warzone':    '#ff3366',
+  'royale':     '#ff3366',
+};
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function wrapText(text: string, maxCharsPerLine: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if ((current + ' ' + word).trim().length > maxCharsPerLine) {
+      if (current) lines.push(current);
+      current = word;
+    } else {
+      current = (current + ' ' + word).trim();
+    }
+    if (lines.length >= 3) break;
+  }
+  if (current && lines.length < 3) lines.push(current);
+  return lines;
+}
+
+function resolveAccentColor(moment: MomentModel): string {
+  const games = (moment.relatedGames ?? []).join(' ').toLowerCase();
+  for (const [slug, color] of Object.entries(GAME_COLORS)) {
+    if (games.includes(slug)) return color;
+  }
+  return '#9a35ff';
+}
+
+async function generateMomentCard(moment: MomentModel): Promise<Buffer> {
+  const accent = resolveAccentColor(moment);
+  const title = (moment.title?.trim() || 'Kult Moment').slice(0, 120);
+  const game = (moment.relatedGames?.[0] ?? 'Kult Games').toUpperCase();
+  const lines = wrapText(title, 32);
+
+  const lineHeight = 68;
+  const startY = 280 - ((lines.length - 1) * lineHeight) / 2;
+
+  const textElements = lines.map((line, i) =>
+    `<text x="80" y="${startY + i * lineHeight}" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="bold">${escapeXml(line)}</text>`
+  ).join('\n      ');
+
+  const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#060811;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#150820;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:${accent};stop-opacity:0.18" />
+      <stop offset="100%" style="stop-color:${accent};stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect x="0" y="0" width="480" height="630" fill="url(#glow)" />
+  <rect width="1200" height="5" fill="${accent}" />
+  <text x="80" y="148" fill="${accent}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="bold" letter-spacing="10">${escapeXml(game)}</text>
+  ${textElements}
+  <text x="80" y="580" fill="${accent}66" font-family="Arial, Helvetica, sans-serif" font-size="18" letter-spacing="8">KULT MOMENTS</text>
+  <rect x="0" y="619" width="1200" height="11" fill="${accent}22" />
+</svg>`;
+
+  return sharp(Buffer.from(svg))
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer();
+}
 
 async function fetchImageBuffer(url: string): Promise<Buffer> {
   const upstream = await axios.get<ArrayBuffer>(url, {
@@ -61,12 +143,23 @@ export function createMomentShareImageHandler(repo: MomentsRepository) {
       }
 
       const sourceUrl = resolveSourceImageUrl(moment);
+
+      // No source image (video without thumbnail) → generate a branded card.
       if (!sourceUrl) {
-        return res.status(404).send('No image for moment');
+        const card = await generateMomentCard(moment);
+        return sendJpeg(res, card);
       }
 
-      const jpeg = await toShareJpeg(await fetchImageBuffer(sourceUrl));
-      return sendJpeg(res, jpeg);
+      // Try to proxy-convert the source image to JPEG.
+      try {
+        const jpeg = await toShareJpeg(await fetchImageBuffer(sourceUrl));
+        return sendJpeg(res, jpeg);
+      } catch {
+        // Proxy failed (network error, unsupported format, etc.) →
+        // redirect to the original URL and let the crawler fetch it directly.
+        // This handles cases like HEIC or assets the backend can't reach.
+        return res.redirect(302, sourceUrl);
+      }
     } catch {
       return res.status(502).send('Could not render share image');
     }

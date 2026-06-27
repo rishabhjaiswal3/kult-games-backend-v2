@@ -27,8 +27,8 @@ export function resolveSourceImageUrl(moment: MomentModel): string | undefined {
       const val = meta[key];
       if (typeof val === 'string' && val.trim()) return val.trim();
     }
-    // 3. Fall back to default Kult logo for video-only moments
-    return config.share.defaultOgImage || undefined;
+    // No thumbnail → return undefined so the caller generates a branded card instead.
+    return undefined;
   }
 
   // Image moment — use the actual asset URL (proxy converts any format to JPEG)
@@ -39,9 +39,13 @@ export function resolveSourceImageUrl(moment: MomentModel): string | undefined {
   return zgUrl ?? undefined;
 }
 
-/** True when the moment has any image we can render for social previews. */
-export function momentHasShareImage(moment: MomentModel): boolean {
-  return Boolean(resolveSourceImageUrl(moment));
+/**
+ * Always true — every moment gets a share image.
+ * Image moments use the asset directly; video moments without thumbnails
+ * get a generated branded card from createMomentShareImageHandler.
+ */
+export function momentHasShareImage(_moment: MomentModel): boolean {
+  return true;
 }
 
 function resolveImageMimeType(imageUrl: string | undefined): string | undefined {
