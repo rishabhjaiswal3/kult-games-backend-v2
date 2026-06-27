@@ -21,6 +21,8 @@ import { SocialPostRepository } from '../modules/social-media/social-media.repos
 import { OnchainActivityRepository } from '../modules/onchain/onchain.repository';
 import { KultPointsRepository } from '../modules/kult-points/kult-points.repository';
 import { KultPointsService } from '../modules/kult-points/kult-points.service';
+import { PlayerTitlesRepository } from '../modules/player-titles/player-titles.repository';
+import { PlayerTitlesService } from '../modules/player-titles/player-titles.service';
 
 // Services
 import { PlayerService } from '../modules/player/player.service';
@@ -64,6 +66,7 @@ export class ServiceFactory {
   private socialPostRepo()      { return this.singleton('socialPostRepo', () => new SocialPostRepository(this.db)); }
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
   private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
+  private playerTitlesRepo()    { return this.singleton('playerTitlesRepo', () => new PlayerTitlesRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -161,6 +164,10 @@ export class ServiceFactory {
 
   createAccessCodeService(): AccessCodeService {
     return this.singleton('accessCodeService', () => new AccessCodeService());
+  }
+
+  createPlayerTitlesService(): PlayerTitlesService {
+    return this.singleton('playerTitlesService', () => new PlayerTitlesService(this.playerTitlesRepo()));
   }
 
   createInternalKultPointsService(): InternalKultPointsService {
