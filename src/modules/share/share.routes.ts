@@ -117,9 +117,8 @@ function buildShareHtml(req: Request, moment: MomentModel, momentId: string): st
   <meta property="og:locale" content="en_US" />${isVideo ? videoTags : `
   <meta property="og:type" content="article" />`}${imageTags}${twitterTags}
 
-  <!-- Redirect humans to the SPA immediately; crawlers skip script execution -->
+  <!-- Redirect humans to the SPA immediately; crawlers skip script execution and read the OG tags above -->
   <script>window.location.replace("${safeSpaUrl}");</script>
-  <noscript><meta http-equiv="refresh" content="0; url=${safeSpaUrl}" /></noscript>
 </head>
 <body>
   <p>Opening <a href="${safeSpaUrl}">${title}</a> on ${siteName}...</p>
