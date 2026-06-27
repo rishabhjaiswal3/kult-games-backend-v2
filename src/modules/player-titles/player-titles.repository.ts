@@ -7,15 +7,19 @@ function normalizeWallet(wallet: string) {
   return wallet.trim().toLowerCase();
 }
 
+// Case-insensitive filter — handles mixed-case addresses inserted directly into DB
+function walletFilter(wallet: string) {
+  const escaped = normalizeWallet(wallet).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return { playerWalletAddress: { $regex: new RegExp(`^${escaped}$`, 'i') } };
+}
+
 export class PlayerTitlesRepository extends BaseRepository {
   constructor(db: Db) {
     super(db, config.db.col.playerTitles);
   }
 
   async findByWallet(wallet: string): Promise<PlayerTitleDoc | null> {
-    return this.collection.findOne<PlayerTitleDoc>({
-      playerWalletAddress: normalizeWallet(wallet),
-    });
+    return this.collection.findOne<PlayerTitleDoc>(walletFilter(wallet));
   }
 
   async upsertTitles(wallet: string, types: TitleType[]): Promise<void> {
@@ -41,7 +45,7 @@ export class PlayerTitlesRepository extends BaseRepository {
     if (newGrants.length === 0) return;
 
     await this.collection.updateOne(
-      { playerWalletAddress: normalized },
+      walletFilter(wallet),
       {
         $push: { titles: { $each: newGrants } } as never,
         $set: { updatedAt: now },
