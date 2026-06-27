@@ -180,6 +180,19 @@ export class MomentsRepository extends BaseRepository {
     return momentIds.map((id) => byId.get(id)).filter((d): d is MomentModel => Boolean(d));
   }
 
+  async getTopCreators(limit: number): Promise<Array<{ walletAddress: string; momentCount: number }>> {
+    const pipeline = [
+      { $group: { _id: '$playerWalletAddress', momentCount: { $sum: 1 } } },
+      { $match: { momentCount: { $gt: 0 } } },
+      { $sort: { momentCount: -1 } },
+      { $limit: limit },
+      { $project: { _id: 0, walletAddress: '$_id', momentCount: 1 } },
+    ];
+    return this.collection
+      .aggregate<{ walletAddress: string; momentCount: number }>(pipeline)
+      .toArray();
+  }
+
   async findPendingMigration(limit: number): Promise<MomentModel[]> {
     return this.collection
       .find<MomentModel>({ zgStatus: 'pending', assetUrl: { $exists: true, $ne: null } })

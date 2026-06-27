@@ -226,6 +226,10 @@ export class MomentsService {
     };
   }
 
+  async getTopCreators(limit = 10) {
+    return this.repo.getTopCreators(limit);
+  }
+
   async retryZgMigration(wallet: string, momentId: string) {
     if (!config.zg.hasUpload()) throw AppError.badRequest('0G upload is not configured');
 
