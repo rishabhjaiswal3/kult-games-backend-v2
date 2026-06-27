@@ -49,7 +49,7 @@ export function createApp(services: ServiceFactory): express.Application {
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.
   // Internally rewrite those to `/api/...` so we don't break existing traffic.
-  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code', '/kp', '/kult-points'];
+  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code', '/kp', '/kult-points', '/player-titles'];
   app.use((req, _res, next) => {
     for (const p of legacyPrefixes) {
       if (req.path === p || req.path.startsWith(p + '/')) {
