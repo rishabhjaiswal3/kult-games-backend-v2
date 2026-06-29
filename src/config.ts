@@ -159,9 +159,9 @@ export const config = {
 
   share: {
     // The SPA's public origin (no trailing slash) — used for redirecting humans from share preview pages.
-    publicAppUrl:     e('PUBLIC_APP_URL',      'https://kult-browser-rust-l2lwg.ondigitalocean.app'),
+    publicAppUrl:     e('PUBLIC_APP_URL',      ''),
     // The backend's own public origin — used to build share preview URLs.
-    shareBaseUrl:     e('SHARE_BASE_URL',       'https://kult-browser-rust-l2lwg.ondigitalocean.app'),
+    shareBaseUrl:     e('SHARE_BASE_URL',       ''),
     // Fallback OG image shown when a moment has no asset URL.
     defaultOgImage:   eOpt('SHARE_DEFAULT_OG_IMAGE', ''),
     // App display name shown in meta tags.
