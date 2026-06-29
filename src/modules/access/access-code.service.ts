@@ -11,7 +11,7 @@ import {
 } from './access-code.model';
 
 const ACCESS_TIERS: AccessTier[] = [
-  { tier: 'tier_1', label: 'AI Arena + League', features: ['ai_arena', 'league'] },
+  { tier: 'tier_1', label: 'AI Arena + League + Moments', features: ['ai_arena', 'league', 'moments'] },
   { tier: 'tier_2', label: 'AI Arena + Moments + Games', features: ['ai_arena', 'moments', 'games'] },
   { tier: 'tier_3', label: 'AI Arena + Games + Creator Platform + Moments', features: ['ai_arena', 'games', 'creator_platform', 'moments'] },
   { tier: 'tier_4', label: 'Full Browser', features: ['full_browser', 'ai_arena', 'league', 'moments', 'games', 'creator_platform', 'creator_studio'] },
