@@ -12,31 +12,30 @@ export function isVideoMoment(moment: MomentModel): boolean {
   return VIDEO_URL_EXT.test(urlToCheck);
 }
 
-export function resolveSourceImageUrl(moment: MomentModel): string | undefined {
+/**
+ * Returns ordered candidate image URLs to try for the share image proxy.
+ * All assets are treated as potential image sources regardless of file type —
+ * Sharp will reject non-image buffers and the handler falls through to the next
+ * candidate, eventually generating a branded card if nothing works.
+ */
+export function resolveSourceImageUrls(moment: MomentModel): string[] {
   const meta = moment.assetMetadata ?? {};
+  const seen = new Set<string>();
+  const candidates: string[] = [];
 
-  // 1. Explicit OG image override in metadata (highest priority)
-  const ogImageUrl = meta['ogImageUrl'];
-  if (typeof ogImageUrl === 'string' && ogImageUrl.trim()) {
-    return ogImageUrl.trim();
+  const push = (url: string | undefined | null) => {
+    const u = url?.trim();
+    if (u && !seen.has(u)) { seen.add(u); candidates.push(u); }
+  };
+
+  push(typeof meta['ogImageUrl'] === 'string' ? meta['ogImageUrl'] as string : null);
+  for (const key of ['thumbnailUrl', 'thumbnail', 'posterUrl', 'poster', 'coverImage', 'previewUrl']) {
+    push(typeof meta[key] === 'string' ? meta[key] as string : null);
   }
+  push(moment.assetUrl);
+  push(moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null);
 
-  if (isVideoMoment(moment)) {
-    // 2. Explicit thumbnail from metadata
-    for (const key of ['thumbnailUrl', 'thumbnail', 'posterUrl', 'poster', 'coverImage', 'previewUrl']) {
-      const val = meta[key];
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    // No thumbnail → return undefined so the caller generates a branded card instead.
-    return undefined;
-  }
-
-  // Image moment — use the actual asset URL (proxy converts any format to JPEG)
-  if (moment.assetUrl?.trim()) return moment.assetUrl.trim();
-
-  // ZG-stored asset (hash → gateway URL)
-  const zgUrl = moment.assetZgHash ? config.zg.gatewayUrlFor(moment.assetZgHash) : null;
-  return zgUrl ?? undefined;
+  return candidates;
 }
 
 /**
