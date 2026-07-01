@@ -11,6 +11,19 @@ import type { OnchainActivityService } from '../onchain/onchain.service';
 const MAX_TAGS = 10;
 const MAX_RELATED_GAMES = 5;
 
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+  webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp',
+  tiff: 'image/tiff', avif: 'image/avif', heic: 'image/heic', heif: 'image/heif',
+  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+  m4v: 'video/mp4', ogv: 'video/ogg',
+};
+
+function inferFileType(url: string): string | undefined {
+  const ext = url.split('?')[0]?.split('.').pop()?.toLowerCase();
+  return ext ? EXT_TO_MIME[ext] : undefined;
+}
+
 function walletsMatch(stored: string, caller: string): boolean {
   return stored.trim().toLowerCase() === caller.trim().toLowerCase();
 }
@@ -45,13 +58,19 @@ export class MomentsService {
     const momentId = nanoid(21);
     const assetUrl = req.assetUrl?.trim() || undefined;
     const rawAssetType = req.assetMetadata?.['fileType'];
-    const assetType = typeof rawAssetType === 'string' ? rawAssetType : undefined;
+    const assetType = (typeof rawAssetType === 'string' ? rawAssetType : undefined)
+      ?? (assetUrl ? inferFileType(assetUrl) : undefined);
+
+    // Merge inferred fileType into assetMetadata so it's always persisted.
+    const assetMetadata: Record<string, unknown> | undefined = assetUrl
+      ? { ...(req.assetMetadata ?? {}), ...(assetType ? { fileType: assetType } : {}) }
+      : req.assetMetadata;
 
     const moment: MomentModel = {
       momentId,
       playerWalletAddress: wallet.trim(),
       assetUrl,
-      assetMetadata: req.assetMetadata,
+      assetMetadata,
       title,
       description: req.description?.trim() || undefined,
       tags: (req.tags ?? []).map((t) => t.trim()),
