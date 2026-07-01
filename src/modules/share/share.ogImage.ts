@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import sharp from 'sharp';
 import { MomentsRepository } from '../moments/moments.repository';
-import { resolveSourceImageUrl } from './share.helpers';
+import { resolveSourceImageUrls } from './share.helpers';
 import type { MomentModel } from '../moments/moments.model';
 
 const DEFAULT_OG_IMAGE_SOURCE =
@@ -17,6 +17,9 @@ const GAME_COLORS: Record<string, string> = {
   'robo':       '#ff6b35',
   'warzone':    '#ff3366',
   'royale':     '#ff3366',
+  'zerodash':   '#00ff88',
+  'zero-dash':  '#00ff88',
+  'highway':    '#ffaa00',
 };
 
 function escapeXml(text: string): string {
@@ -142,24 +145,29 @@ export function createMomentShareImageHandler(repo: MomentsRepository) {
         return res.status(404).send('Moment not found');
       }
 
-      const sourceUrl = resolveSourceImageUrl(moment);
+      const sourceUrls = resolveSourceImageUrls(moment);
 
-      // No source image (video without thumbnail) → generate a branded card.
-      if (!sourceUrl) {
+      // No candidates = video moment with no thumbnail → branded card immediately.
+      if (sourceUrls.length === 0) {
         const card = await generateMomentCard(moment);
         return sendJpeg(res, card);
       }
 
-      // Try to proxy-convert the source image to JPEG.
-      try {
-        const jpeg = await toShareJpeg(await fetchImageBuffer(sourceUrl));
-        return sendJpeg(res, jpeg);
-      } catch {
-        // Proxy failed (network error, unsupported format, etc.) →
-        // redirect to the original URL and let the crawler fetch it directly.
-        // This handles cases like HEIC or assets the backend can't reach.
-        return res.redirect(302, sourceUrl);
+      // Try each candidate URL in priority order (primary → 0G gateway → etc.).
+      // For image moments this guarantees the actual screenshot is shown;
+      // for video moments it tries every thumbnail source before giving up.
+      for (const url of sourceUrls) {
+        try {
+          const jpeg = await toShareJpeg(await fetchImageBuffer(url));
+          return sendJpeg(res, jpeg);
+        } catch {
+          // URL failed (inaccessible, video file, unsupported format) — try next.
+        }
       }
+
+      // All sources exhausted → branded card so crawlers always get a valid JPEG.
+      const card = await generateMomentCard(moment);
+      return sendJpeg(res, card);
     } catch {
       return res.status(502).send('Could not render share image');
     }
