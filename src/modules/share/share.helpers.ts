@@ -72,12 +72,18 @@ export function buildPublicAppOrigin(req: Request): string {
   return requestOrigin(req) || configured;
 }
 
+export function buildShareBaseOrigin(req: Request): string {
+  const configured = config.share.shareBaseUrl.replace(/\/+$/, '');
+  if (configured) return configured;
+  return requestOrigin(req) || buildPublicAppOrigin(req);
+}
+
 export function buildMomentPageUrl(req: Request, momentId: string): string {
   return `${buildPublicAppOrigin(req)}/moments/${momentId}`;
 }
 
 export function buildOgImageProxyUrl(req: Request, momentId: string): string {
-  const origin = buildPublicAppOrigin(req);
+  const origin = buildShareBaseOrigin(req);
   return `${origin}/api/moments/${momentId}/share-image.jpg`;
 }
 

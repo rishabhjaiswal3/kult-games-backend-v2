@@ -28,6 +28,7 @@ import { playerTitlesRouter } from './modules/player-titles/player-titles.routes
 
 export function createApp(services: ServiceFactory): express.Application {
   const app = express();
+  const momentIdRoutePattern = '[A-Za-z0-9_-]{21}';
 
   // ── Global middleware ─────────────────────────────────────────────────────
 
@@ -57,9 +58,9 @@ export function createApp(services: ServiceFactory): express.Application {
   // With "Path trimmed" DO strips /moments and sends /:momentId — handled below.
   const momentOgHandler = createMomentSpaOgHandler(services.getMomentsRepo());
   // Full path — when DO uses preserve_path_prefix: true for the /moments route
-  app.get('/moments/:momentId', momentOgHandler);
+  app.get(`/moments/:momentId(${momentIdRoutePattern})`, momentOgHandler);
   // Trimmed path — when DO uses "Path trimmed" (strips the /moments prefix)
-  app.get('/:momentId', momentOgHandler);
+  app.get(`/:momentId(${momentIdRoutePattern})`, momentOgHandler);
 
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.
