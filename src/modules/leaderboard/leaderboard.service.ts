@@ -15,23 +15,30 @@ import {
   LeaderboardEntry,
 } from './leaderboard.model';
 import { Db, Document } from 'mongodb';
+import { KultPointsRepository } from '../kult-points/kult-points.repository';
 
 export class GlobalLeaderboardService {
   constructor(
     private readonly globalRepo: GlobalLeaderboardRepository,
     private readonly configRepo: GameLeaderboardConfigRepository,
     private readonly gameLbService: GameLeaderboardService,
+    private readonly kultPointsRepo: KultPointsRepository,
   ) {}
 
   async getGlobalLeaderboardPaginated(page: number, pageSize: number): Promise<GlobalLeaderboardResponse> {
     const skip = (page - 1) * pageSize;
     const [entries, totalCount] = await Promise.all([
-      this.globalRepo.getGlobalRanking(skip, pageSize),
-      this.globalRepo.countAll(),
+      this.kultPointsRepo.getPaginated(skip, pageSize),
+      this.kultPointsRepo.countAll(),
     ]);
 
     return {
-      entries: entries.map(toGlobalEntryDto),
+      entries: entries.map((e, i) => ({
+        rank: skip + i + 1,
+        walletAddress: e.walletAddress,
+        score: e.kultPoints,
+        level: calculateLevel(e.kultPoints),
+      })),
       totalCount,
       page,
       pageSize,

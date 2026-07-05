@@ -77,6 +77,19 @@ export class KultPointsRepository extends BaseRepository {
     return doc;
   }
 
+  async getPaginated(skip: number, limit: number): Promise<KultPointsModel[]> {
+    return this.collection
+      .find<KultPointsModel>({})
+      .sort({ kultPoints: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+  }
+
+  async countAll(): Promise<number> {
+    return this.collection.countDocuments({});
+  }
+
   async countRankByKultPoints(kultPoints: number): Promise<number> {
     const safe = clampKultPoints(kultPoints);
     if (safe <= 0) return 0;

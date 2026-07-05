@@ -98,6 +98,7 @@ export class ServiceFactory {
         this.globalLbRepo(),
         this.gameLbConfigRepo(),
         this.createGameLeaderboardService(),
+        this.kultPointsRepo(),
       ),
     );
   }
