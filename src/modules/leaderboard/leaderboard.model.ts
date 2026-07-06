@@ -33,7 +33,10 @@ export interface LeaderboardEntry {
 export interface GlobalLeaderboardEntryDto {
   rank: number;
   walletAddress: string;
+  /** Weighted contribution score from game leaderboards. */
   score: number;
+  /** Ledger-backed Kult Points balance for this wallet. */
+  kultPoints: number;
   level: number;
 }
 

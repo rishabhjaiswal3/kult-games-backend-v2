@@ -15,23 +15,54 @@ import {
   LeaderboardEntry,
 } from './leaderboard.model';
 import { Db, Document } from 'mongodb';
+import { KultPointsRepository } from '../kult-points/kult-points.repository';
 
 export class GlobalLeaderboardService {
   constructor(
     private readonly globalRepo: GlobalLeaderboardRepository,
     private readonly configRepo: GameLeaderboardConfigRepository,
     private readonly gameLbService: GameLeaderboardService,
+    private readonly kultPointsRepo: KultPointsRepository,
   ) {}
 
   async getGlobalLeaderboardPaginated(page: number, pageSize: number): Promise<GlobalLeaderboardResponse> {
     const skip = (page - 1) * pageSize;
-    const [entries, totalCount] = await Promise.all([
-      this.globalRepo.getGlobalRanking(skip, pageSize),
-      this.globalRepo.countAll(),
+    const globalCount = await this.globalRepo.countAll();
+
+    if (globalCount > 0) {
+      const entries = await this.globalRepo.getGlobalRanking(skip, pageSize);
+      const kultPointsByWallet = await this.kultPointsRepo.getBalancesForWallets(
+        entries.map((e) => e.walletAddress),
+      );
+
+      return {
+        entries: entries.map((e, i) => ({
+          rank: skip + i + 1,
+          walletAddress: e.walletAddress,
+          score: e.score,
+          kultPoints: kultPointsByWallet.get(e.walletAddress.toLowerCase()) ?? 0,
+          level: e.level,
+        })),
+        totalCount: globalCount,
+        page,
+        pageSize,
+        totalPages: globalCount === 0 ? 0 : Math.ceil(globalCount / pageSize),
+      };
+    }
+
+    const [kpEntries, totalCount] = await Promise.all([
+      this.kultPointsRepo.getPaginated(skip, pageSize),
+      this.kultPointsRepo.countAll(),
     ]);
 
     return {
-      entries: entries.map(toGlobalEntryDto),
+      entries: kpEntries.map((e, i) => ({
+        rank: skip + i + 1,
+        walletAddress: e.walletAddress,
+        score: 0,
+        kultPoints: e.kultPoints,
+        level: calculateLevel(e.kultPoints),
+      })),
       totalCount,
       page,
       pageSize,
@@ -152,8 +183,14 @@ export class GameLeaderboardService {
   }
 }
 
-function toGlobalEntryDto(model: GlobalLeaderboardModel): GlobalLeaderboardEntryDto {
-  return { rank: model.rank, walletAddress: model.walletAddress, score: model.score, level: model.level };
+function toGlobalEntryDto(model: GlobalLeaderboardModel, kultPoints = 0): GlobalLeaderboardEntryDto {
+  return {
+    rank: model.rank,
+    walletAddress: model.walletAddress,
+    score: model.score,
+    kultPoints,
+    level: model.level,
+  };
 }
 
 function entryFromDoc(doc: Document, rank: number): GameLeaderboardEntryDto {

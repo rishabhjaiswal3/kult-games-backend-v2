@@ -77,10 +77,49 @@ export class KultPointsRepository extends BaseRepository {
     return doc;
   }
 
+  async getPaginated(skip: number, limit: number): Promise<KultPointsModel[]> {
+    return this.collection
+      .find<KultPointsModel>({})
+      .sort({ kultPoints: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+  }
+
+  async countAll(): Promise<number> {
+    return this.collection.countDocuments({});
+  }
+
   async countRankByKultPoints(kultPoints: number): Promise<number> {
     const safe = clampKultPoints(kultPoints);
     if (safe <= 0) return 0;
     return this.collection.countDocuments({ kultPoints: { $gt: safe } });
+  }
+
+  /** Batch lookup of KP balances keyed by normalized wallet address. */
+  async getBalancesForWallets(walletAddresses: string[]): Promise<Map<string, number>> {
+    const wallets = Array.from(
+      new Set(walletAddresses.map((w) => normalizeWalletKey(w)).filter(Boolean)),
+    );
+    const balances = new Map<string, number>();
+    if (!wallets.length) return balances;
+
+    const entries = await this.collection
+      .find<KultPointsModel>({ walletAddress: { $in: wallets } })
+      .toArray();
+
+    for (const entry of entries) {
+      const wallet = normalizeWalletKey(entry.walletAddress);
+      balances.set(wallet, clampKultPoints(entry.kultPoints));
+    }
+
+    for (const wallet of wallets) {
+      if (!balances.has(wallet)) {
+        balances.set(wallet, DEFAULT_KULT_POINTS);
+      }
+    }
+
+    return balances;
   }
 
   async bulkSetBalances(
