@@ -96,6 +96,32 @@ export class KultPointsRepository extends BaseRepository {
     return this.collection.countDocuments({ kultPoints: { $gt: safe } });
   }
 
+  /** Batch lookup of KP balances keyed by normalized wallet address. */
+  async getBalancesForWallets(walletAddresses: string[]): Promise<Map<string, number>> {
+    const wallets = Array.from(
+      new Set(walletAddresses.map((w) => normalizeWalletKey(w)).filter(Boolean)),
+    );
+    const balances = new Map<string, number>();
+    if (!wallets.length) return balances;
+
+    const entries = await this.collection
+      .find<KultPointsModel>({ walletAddress: { $in: wallets } })
+      .toArray();
+
+    for (const entry of entries) {
+      const wallet = normalizeWalletKey(entry.walletAddress);
+      balances.set(wallet, clampKultPoints(entry.kultPoints));
+    }
+
+    for (const wallet of wallets) {
+      if (!balances.has(wallet)) {
+        balances.set(wallet, DEFAULT_KULT_POINTS);
+      }
+    }
+
+    return balances;
+  }
+
   async bulkSetBalances(
     entries: Array<{ walletAddress: string; kultPoints: number }>,
   ): Promise<number> {
