@@ -79,6 +79,24 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   }
 }
 
+/** Attach wallet when a valid JWT is present; never fail the request. */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  try {
+    const token = header.slice(7);
+    const payload = verifyToken(token);
+    req.player = { walletAddress: payload.wallet_address };
+  } catch {
+    // stay anonymous
+  }
+  next();
+}
+
 export function requireAdmin(req: Request, _res: Response, next: NextFunction): void {
   if (!config.app.isAdmin()) {
     return next(AppError.forbidden('Admin access only'));

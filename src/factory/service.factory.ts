@@ -23,6 +23,8 @@ import { KultPointsRepository } from '../modules/kult-points/kult-points.reposit
 import { KultPointsService } from '../modules/kult-points/kult-points.service';
 import { PlayerTitlesRepository } from '../modules/player-titles/player-titles.repository';
 import { PlayerTitlesService } from '../modules/player-titles/player-titles.service';
+import { ActivityRepository } from '../modules/activity/activity.repository';
+import { ActivityService } from '../modules/activity/activity.service';
 
 // Services
 import { PlayerService } from '../modules/player/player.service';
@@ -67,6 +69,7 @@ export class ServiceFactory {
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
   private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
   private playerTitlesRepo()    { return this.singleton('playerTitlesRepo', () => new PlayerTitlesRepository(this.db)); }
+  private activityRepo()        { return this.singleton('activityRepo', () => new ActivityRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -169,6 +172,10 @@ export class ServiceFactory {
 
   createPlayerTitlesService(): PlayerTitlesService {
     return this.singleton('playerTitlesService', () => new PlayerTitlesService(this.playerTitlesRepo()));
+  }
+
+  createActivityService(): ActivityService {
+    return this.singleton('activityService', () => new ActivityService(this.activityRepo()));
   }
 
   createInternalKultPointsService(): InternalKultPointsService {

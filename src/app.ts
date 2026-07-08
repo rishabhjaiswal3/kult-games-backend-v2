@@ -25,6 +25,7 @@ import { accessCodeRouter } from './modules/access/access-code.routes';
 import { kultPointsRouter } from './modules/kult-points/kult-points.routes';
 import { internalKultPointsRouter } from './modules/internal-kult-points/internal-kult-points.routes';
 import { playerTitlesRouter } from './modules/player-titles/player-titles.routes';
+import { activityRouter } from './modules/activity/activity.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
   const app = express();
@@ -36,11 +37,13 @@ export function createApp(services: ServiceFactory): express.Application {
 
   app.use(cors({ origin: config.app.corsOrigins.includes('*') ? '*' : config.app.corsOrigins }));
 
+  // Activity ingest is high-volume (batched heatmap events) — exclude from default limit.
   app.use(rateLimit({
     windowMs: 60_000,
     max: 60,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path.startsWith('/api/activity') || req.path.startsWith('/activity'),
   }));
 
   app.use(express.json({ limit: '2mb' }));
@@ -65,7 +68,7 @@ export function createApp(services: ServiceFactory): express.Application {
   // ── Backwards-compatibility: rewrite legacy root routes to /api/*
   // Some clients still request endpoints like `/marketplace` or `/games`.
   // Internally rewrite those to `/api/...` so we don't break existing traffic.
-  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code', '/kp', '/kult-points', '/player-titles'];
+  const legacyPrefixes = ['/marketplace', '/games', '/content', '/leaderboard', '/moments', '/social-media', '/referral', '/upload', '/player', '/admin', '/access-code', '/kp', '/kult-points', '/player-titles', '/activity'];
   app.use((req, _res, next) => {
     for (const p of legacyPrefixes) {
       if (req.path === p || req.path.startsWith(p + '/')) {
@@ -102,6 +105,16 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/social-media', socialMediaRoutes);
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/player-titles', playerTitlesRouter(services.createPlayerTitlesService()));
+  app.use(
+    '/api/activity',
+    rateLimit({
+      windowMs: 60_000,
+      max: 240,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    activityRouter(services.createActivityService()),
+  );
   app.use('/api/upload',       uploadRouter());
   app.use('/api/admin',        adminRouter(services.getLbConfigRepo(), services.getListingRepo()));
 
