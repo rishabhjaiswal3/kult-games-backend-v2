@@ -23,7 +23,6 @@ import { KultPointsRepository } from '../modules/kult-points/kult-points.reposit
 import { KultPointsService } from '../modules/kult-points/kult-points.service';
 import { PlayerTitlesRepository } from '../modules/player-titles/player-titles.repository';
 import { PlayerTitlesService } from '../modules/player-titles/player-titles.service';
-
 // Services
 import { PlayerService } from '../modules/player/player.service';
 import { GameService } from '../modules/game/game.service';
