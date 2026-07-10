@@ -48,6 +48,6 @@ test('share helpers use PUBLIC_APP_URL for page URLs and SHARE_BASE_URL for OG i
   assert.equal(payload.momentPageUrl, 'https://app.kult.games/moments/moment-123');
   assert.equal(
     payload.ogImageUrl,
-    'https://kult-browser-rust-l2lwg.ondigitalocean.app/api/moments/moment-123/share-image.jpg',
+    'https://kult-browser-rust-l2lwg.ondigitalocean.app/api/share/moments/moment-123/og-image.jpg',
   );
 });

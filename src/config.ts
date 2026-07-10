@@ -90,7 +90,6 @@ export const config = {
       orders:             e('MARKETPLACE_ORDERS_COLL',       'marketplace_orders'),
       daEvents:           'moment_da_events',
       playerTitles:       e('PLAYER_TITLES_COLL', 'player_titles'),
-      activityEvents:     e('ACTIVITY_EVENTS_COLL', 'player_activity_events'),
     },
   },
 

@@ -99,14 +99,6 @@ export async function ensureIndexes(database: Db): Promise<void> {
     createIndexes(database, col.playerTitles, [
       { key: { playerWalletAddress: 1 }, unique: true },
     ]),
-    createIndexes(database, col.activityEvents, [
-      { key: { createdAt: 1 }, expireAfterSeconds: 60 * 60 * 24 * 90 },
-      { key: { walletAddress: 1, ts: -1 } },
-      { key: { sessionId: 1, ts: -1 } },
-      { key: { path: 1, type: 1, ts: -1 } },
-      { key: { dayKey: 1, type: 1 } },
-      { key: { anonymousId: 1, ts: -1 } },
-    ]),
     createIndexes(database, 'store_referrals', [
       { key: { referred_player_id: 1 }, unique: true },
     ]),

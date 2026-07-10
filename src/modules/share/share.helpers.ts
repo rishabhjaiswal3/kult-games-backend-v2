@@ -84,7 +84,9 @@ export function buildMomentPageUrl(req: Request, momentId: string): string {
 
 export function buildOgImageProxyUrl(req: Request, momentId: string): string {
   const origin = buildShareBaseOrigin(req);
-  return `${origin}/api/moments/${momentId}/share-image.jpg`;
+  // Must live under /api/share so the static frontend proxy forwards image requests
+  // to the backend (production-server only proxies /api/share/*, not /api/moments/*).
+  return `${origin}/api/share/moments/${momentId}/og-image.jpg`;
 }
 
 /**
