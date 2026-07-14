@@ -25,6 +25,7 @@ import { accessCodeRouter } from './modules/access/access-code.routes';
 import { kultPointsRouter } from './modules/kult-points/kult-points.routes';
 import { internalKultPointsRouter } from './modules/internal-kult-points/internal-kult-points.routes';
 import { playerTitlesRouter } from './modules/player-titles/player-titles.routes';
+import { dailyRewardsRouter } from './modules/daily-rewards/daily-rewards.routes';
 
 export function createApp(services: ServiceFactory): express.Application {
   const app = express();
@@ -102,6 +103,7 @@ export function createApp(services: ServiceFactory): express.Application {
   app.use('/api/social-media', socialMediaRoutes);
   app.use('/api/referral',     referralRouter(services.createReferralService()));
   app.use('/api/player-titles', playerTitlesRouter(services.createPlayerTitlesService()));
+  app.use('/api/rewards', dailyRewardsRouter(services.createDailyRewardsService()));
   app.use('/api/upload',       uploadRouter());
   app.use('/api/admin',        adminRouter(services.getLbConfigRepo(), services.getListingRepo()));
 
