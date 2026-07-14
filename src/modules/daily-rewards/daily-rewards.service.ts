@@ -1,8 +1,10 @@
 import { AppError } from '../../core/error';
+import { grantArenaQuestReward } from '../../external/arena-chain-reward';
 import { grantHighwayHustleVehicleReward } from '../../external/highway-hustle-reward';
 import { logger } from '../../db/logger';
 import { KultPointsRepository } from '../kult-points/kult-points.repository';
 import {
+  DAILY_REWARD_ARENA_BY_DAY,
   DAILY_REWARD_HIGHWAY_VEHICLE_ID,
   DAILY_REWARD_KP_BY_DAY,
   MS_PER_REWARD_DAY,
@@ -96,7 +98,25 @@ export class DailyRewardsService {
       return;
     }
 
-    // Days 1, 2, 4, 5, 7 (arena tokens ignored), 9, 10 — recorded in DB only; UX handled in frontend.
+    const arenaAmount = DAILY_REWARD_ARENA_BY_DAY[day];
+    if (arenaAmount) {
+      try {
+        const result = await grantArenaQuestReward(
+          wallet,
+          String(arenaAmount),
+          `Daily login reward — Day ${day} (${arenaAmount} ARENA)`,
+        );
+        if (!result.granted) {
+          throw new Error(result.reason ?? 'arena_quest_reward_not_granted');
+        }
+      } catch (err) {
+        logger.error({ err, wallet, day, arenaAmount }, 'Failed to grant Arena daily reward');
+        throw AppError.internal('Failed to grant Arena token reward');
+      }
+      return;
+    }
+
+    // Days 1, 2, 4, 5, 9, 10 — recorded in DB only; UX handled in frontend.
   }
 }
 
