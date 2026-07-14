@@ -14,6 +14,7 @@ import type { GlobalLeaderboardRepository } from '../leaderboard/leaderboard.rep
 import type { GameLeaderboardService } from '../leaderboard/leaderboard.service';
 import type { AgentRepository } from '../agent/agent.repository';
 import type { KultPointsService } from '../kult-points/kult-points.service';
+import type { DailyActivityRepository } from '../daily-activity/daily-activity.repository';
 
 export class PlayerService {
   constructor(
@@ -23,6 +24,7 @@ export class PlayerService {
     private readonly gameLbService: GameLeaderboardService,
     private readonly agentRepo: AgentRepository,
     private readonly kultPointsService: KultPointsService,
+    private readonly dailyActivityRepo: DailyActivityRepository,
     private readonly referralQueuePush: ((playerId: string, code: string, ip: string) => Promise<void>) | null,
   ) {}
 
@@ -82,6 +84,14 @@ export class PlayerService {
     }
 
     const token = signToken(wallet);
+
+    try {
+      await this.dailyActivityRepo.recordLogin(wallet, ip);
+      logger.debug({ wallet }, 'Daily login activity recorded');
+    } catch (err) {
+      logger.error({ err, wallet }, 'Failed to record daily login activity');
+    }
+
     return {
       token,
       player: {

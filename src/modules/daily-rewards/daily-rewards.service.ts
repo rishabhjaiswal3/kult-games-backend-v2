@@ -40,18 +40,19 @@ export class DailyRewardsService {
     const now = new Date();
     let doc = await this.dailyRewardsRepository.findByWallet(wallet);
 
-    if (!doc) {
-      if (req.legacyDay1) {
-        await this.fulfillReward(wallet, 2);
-        doc = await this.dailyRewardsRepository.createRecord({
-          walletAddress: wallet,
-          claimedDays: [1, 2],
-          firstClaimAt: subDays(now, 1),
-          lastClaimedAt: now,
-        });
-        return { ...toState(doc), claimedDay: 2 };
+    if (req.legacyDay1) {
+      if (doc) {
+        const existing = toState(doc);
+        if (existing.claimedDays.includes(2)) {
+          throw AppError.badRequest('Day 2 reward already claimed');
+        }
       }
+      await this.fulfillReward(wallet, 2);
+      doc = await this.dailyRewardsRepository.legacyBootstrapDay2(wallet, now, subDays(now, 1));
+      return { ...toState(doc), claimedDay: 2 };
+    }
 
+    if (!doc) {
       await this.fulfillReward(wallet, 1);
       doc = await this.dailyRewardsRepository.createRecord({
         walletAddress: wallet,

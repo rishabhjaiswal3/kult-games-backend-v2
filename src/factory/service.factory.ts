@@ -37,6 +37,7 @@ import { AccessCodeService } from '../modules/access/access-code.service';
 import { InternalKultPointsService } from '../modules/internal-kult-points/internal-kult-points.service';
 import { DailyRewardsRepository } from '../modules/daily-rewards/daily-rewards.repository';
 import { DailyRewardsService } from '../modules/daily-rewards/daily-rewards.service';
+import { DailyActivityRepository } from '../modules/daily-activity/daily-activity.repository';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -69,6 +70,7 @@ export class ServiceFactory {
   private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
   private playerTitlesRepo()    { return this.singleton('playerTitlesRepo', () => new PlayerTitlesRepository(this.db)); }
   private dailyRewardsRepo()    { return this.singleton('dailyRewardsRepo', () => new DailyRewardsRepository(this.db)); }
+  private dailyActivityRepo()   { return this.singleton('dailyActivityRepo', () => new DailyActivityRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -156,6 +158,7 @@ export class ServiceFactory {
         this.createGameLeaderboardService(),
         this.agentRepo(),
         this.createKultPointsService(),
+        this.dailyActivityRepo(),
         (playerId, code, ip) => this.createReferralService().processSignup(playerId, code, ip),
       ),
     );

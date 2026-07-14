@@ -91,6 +91,7 @@ export const config = {
       daEvents:           'moment_da_events',
       playerTitles:       e('PLAYER_TITLES_COLL', 'player_titles'),
       dailyRewards:       e('DAILY_REWARDS_COLL', 'daily_rewards'),
+      dailyActivity:      e('DAILY_ACTIVITY_COLL', 'daily_activity'),
     },
   },
 

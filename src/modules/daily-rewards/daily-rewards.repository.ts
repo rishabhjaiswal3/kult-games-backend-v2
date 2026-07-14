@@ -64,4 +64,35 @@ export class DailyRewardsRepository extends BaseRepository {
       updatedAt: new Date(),
     };
   }
+
+  /** Legacy bootstrap: day 1 implied by pre-existing agent, claim day 2 now. */
+  async legacyBootstrapDay2(wallet: string, claimedAt: Date, firstClaimAt: Date): Promise<DailyRewardsDoc> {
+    const existing = await this.findByWallet(wallet);
+    if (!existing) {
+      return this.createRecord({
+        walletAddress: wallet,
+        claimedDays: [1, 2],
+        firstClaimAt,
+        lastClaimedAt: claimedAt,
+      });
+    }
+
+    const claimedDays = [...new Set([...existing.claimedDays, 1, 2])].sort((a, b) => a - b);
+    await this.collection.updateOne(walletFilter(wallet), {
+      $set: {
+        claimedDays,
+        firstClaimAt,
+        lastClaimedAt: claimedAt,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      ...existing,
+      claimedDays,
+      firstClaimAt,
+      lastClaimedAt: claimedAt,
+      updatedAt: new Date(),
+    };
+  }
 }
