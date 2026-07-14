@@ -10,6 +10,11 @@ export const DAILY_REWARD_KP_BY_DAY: Partial<Record<number, number>> = {
 /** Highway Hustle vehicle reward id for day 6. */
 export const DAILY_REWARD_HIGHWAY_VEHICLE_ID = 'muscle';
 
+/** $ARENA on-chain grants via arena-chain-service (quest reward). */
+export const DAILY_REWARD_ARENA_BY_DAY: Partial<Record<number, number>> = {
+  7: 500,
+};
+
 export interface DailyRewardsDoc {
   walletAddress: string;
   claimedDays: number[];

@@ -101,6 +101,12 @@ export const config = {
     timeoutMs: eInt('HIGHWAY_HUSTLE_REWARD_TIMEOUT_MS', 5000),
   },
 
+  arenaChain: {
+    baseUrl: eOpt('ARENA_CHAIN_SERVICE_URL', 'https://aiarena-arena-chain.onrender.com')!.replace(/\/+$/, ''),
+    serviceKey: eOpt('INTERNAL_SERVICE_SECRET', '') ?? '',
+    timeoutMs: eInt('ARENA_CHAIN_REWARD_TIMEOUT_MS', 20_000),
+  },
+
   redis: {
     url:    e('VALKEY_URL',        'redis://127.0.0.1:6379'),
     prefix: e('VALKEY_KEY_PREFIX', 'kult_browser'),
