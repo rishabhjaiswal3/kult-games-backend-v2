@@ -90,7 +90,14 @@ export const config = {
       orders:             e('MARKETPLACE_ORDERS_COLL',       'marketplace_orders'),
       daEvents:           'moment_da_events',
       playerTitles:       e('PLAYER_TITLES_COLL', 'player_titles'),
+      dailyRewards:       e('DAILY_REWARDS_COLL', 'daily_rewards'),
     },
+  },
+
+  highwayHustle: {
+    baseUrl: eOpt('HIGHWAY_HUSTLE_API_URL', 'https://highway-hustle-backend.onrender.com/api')!.replace(/\/+$/, ''),
+    grantSecret: eOpt('HIGHWAY_HUSTLE_REWARD_GRANT_SECRET', '') ?? '',
+    timeoutMs: eInt('HIGHWAY_HUSTLE_REWARD_TIMEOUT_MS', 5000),
   },
 
   redis: {

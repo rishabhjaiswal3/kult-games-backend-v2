@@ -35,6 +35,8 @@ import { ReferralService } from '../modules/referral/referral.service';
 import { OnchainActivityService } from '../modules/onchain/onchain.service';
 import { AccessCodeService } from '../modules/access/access-code.service';
 import { InternalKultPointsService } from '../modules/internal-kult-points/internal-kult-points.service';
+import { DailyRewardsRepository } from '../modules/daily-rewards/daily-rewards.repository';
+import { DailyRewardsService } from '../modules/daily-rewards/daily-rewards.service';
 
 export class ServiceFactory {
   // Singleton cache — each service is created exactly once.
@@ -66,6 +68,7 @@ export class ServiceFactory {
   private onchainRepo()         { return this.singleton('onchainRepo',    () => new OnchainActivityRepository(this.db)); }
   private kultPointsRepo()      { return this.singleton('kultPointsRepo', () => new KultPointsRepository(this.db)); }
   private playerTitlesRepo()    { return this.singleton('playerTitlesRepo', () => new PlayerTitlesRepository(this.db)); }
+  private dailyRewardsRepo()    { return this.singleton('dailyRewardsRepo', () => new DailyRewardsRepository(this.db)); }
 
   // ── Queues ───────────────────────────────────────────────────────────────────
 
@@ -174,6 +177,13 @@ export class ServiceFactory {
     return this.singleton(
       'internalKultPointsService',
       () => new InternalKultPointsService(this.kultPointsRepo()),
+    );
+  }
+
+  createDailyRewardsService(): DailyRewardsService {
+    return this.singleton(
+      'dailyRewardsService',
+      () => new DailyRewardsService(this.dailyRewardsRepo(), this.kultPointsRepo()),
     );
   }
 
